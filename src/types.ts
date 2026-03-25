@@ -2,6 +2,7 @@ export interface Product {
   id: number;
   name: string;
   sku: string;
+  barcode: string;
   category: string;
   brand: string;
   unit: string;
@@ -18,11 +19,21 @@ export interface Product {
   image_url: string;
 }
 
+export type Role = 'manager' | 'delivery'; // New type definition
+
 export interface User {
   id: number;
   name: string;
-  role: 'manager' | 'delivery';
+  role: Role; // Updated: using the new Role type
   phone: string;
+}
+
+export interface Category { // New interface
+  id: number;
+  name: string;
+  description: string;
+  parent_id: number | null;
+  status: string;
 }
 
 export interface OrderItem {

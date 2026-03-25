@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { Message, Order, Product, User } from '../types';
 import {
@@ -18,8 +18,9 @@ import {
   Users,
   Warehouse,
 } from 'lucide-react';
+import ProductsDashboard from './ProductsDashboard';
 
-type TabKey = 'orders' | 'inventory' | 'whatsapp';
+type Tab = 'orders' | 'products' | 'inventory' | 'whatsapp';
 
 type ProductFormState = {
   name: string;
@@ -82,7 +83,7 @@ export default function ManagerDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [activeTab, setActiveTab] = useState<TabKey>('orders');
+  const [activeTab, setActiveTab] = useState<Tab>('orders');
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [productForm, setProductForm] = useState<ProductFormState>(emptyProductForm);
@@ -91,6 +92,12 @@ export default function ManagerDashboard() {
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
   const [productImageError, setProductImageError] = useState('');
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, selectedPhone]);
 
   useEffect(() => {
     fetch('/api/orders').then(r => r.json()).then(setOrders);
@@ -279,7 +286,7 @@ export default function ManagerDashboard() {
               <Warehouse className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">AirO Admin</h1>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">eDawr Admin</h1>
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Operations Console</p>
             </div>
           </div>
@@ -290,6 +297,12 @@ export default function ManagerDashboard() {
             >
               Orders
             </button>
+            <button
+            onClick={() => setActiveTab('products')}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'products' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Products
+          </button>
             <button
               onClick={() => setActiveTab('inventory')}
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
@@ -399,6 +412,8 @@ export default function ManagerDashboard() {
               )}
             </div>
           </div>
+        ) : activeTab === 'products' ? (
+          <ProductsDashboard />
         ) : activeTab === 'inventory' ? (
           <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -826,17 +841,18 @@ export default function ManagerDashboard() {
                     <MessageSquare className="h-5 w-5 text-emerald-500" />
                     {selectedPhone}
                   </div>
-                  <div className="flex-1 space-y-4 overflow-y-auto p-4">
+                  <div className="flex-1 space-y-4 overflow-y-auto p-4 flex flex-col">
                     {conversations[selectedPhone]?.map(msg => (
                       <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.direction === 'outbound' ? 'rounded-tr-sm bg-emerald-500 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-800 shadow-sm'}`}>
-                          <div className="text-sm">{msg.content}</div>
+                          <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                           <div className={`mt-1 text-right text-[10px] ${msg.direction === 'outbound' ? 'text-emerald-100' : 'text-slate-400'}`}>
                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} />
                   </div>
                   <div className="border-t border-slate-200 bg-white p-4">
                     <form
