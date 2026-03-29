@@ -165,12 +165,12 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm max-w-5xl mx-auto">
+    <section className="panel mx-auto max-w-5xl rounded-[2rem]">
       <div className="border-b border-slate-200 px-6 py-5">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
-            className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
+            className="secondary-action -ml-2 p-2 text-slate-500 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -189,19 +189,19 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 text-sm">
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Product name *</span>
-              <input type="text" required value={form.name} onChange={e => handleFieldChange('name', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Product name" />
+              <input type="text" required value={form.name} onChange={e => handleFieldChange('name', e.target.value)} className="field-control" placeholder="Product name" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">SKU</span>
-              <input type="text" value={form.sku} onChange={e => handleFieldChange('sku', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="SKU-123" />
+              <input type="text" value={form.sku} onChange={e => handleFieldChange('sku', e.target.value)} className="field-control" placeholder="SKU-123" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Barcode</span>
-              <input type="text" value={form.barcode} onChange={e => handleFieldChange('barcode', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="EAN/UPC" />
+              <input type="text" value={form.barcode} onChange={e => handleFieldChange('barcode', e.target.value)} className="field-control" placeholder="EAN/UPC" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Category</span>
-              <select value={form.category} onChange={e => handleFieldChange('category', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900">
+              <select value={form.category} onChange={e => handleFieldChange('category', e.target.value)} className="field-control">
                 {categories.length === 0 && <option value="General">General</option>}
                 {categories.map(c => (
                   <option key={c.id} value={c.name}>{c.name}</option>
@@ -210,19 +210,19 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Brand</span>
-              <input type="text" value={form.brand} onChange={e => handleFieldChange('brand', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Brand name" />
+              <input type="text" value={form.brand} onChange={e => handleFieldChange('brand', e.target.value)} className="field-control" placeholder="Brand name" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Selling unit</span>
-              <input type="text" value={form.unit} onChange={e => handleFieldChange('unit', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Piece, kg, box..." />
+              <input type="text" value={form.unit} onChange={e => handleFieldChange('unit', e.target.value)} className="field-control" placeholder="Piece, kg, box..." />
             </label>
             <label className="block lg:col-span-3">
               <span className="mb-1.5 block font-medium text-slate-700">Description</span>
-              <textarea value={form.description} onChange={e => handleFieldChange('description', e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Product details..." />
+              <textarea value={form.description} onChange={e => handleFieldChange('description', e.target.value)} rows={3} className="field-control" placeholder="Product details..." />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Lifecycle status</span>
-              <select value={form.status} onChange={e => handleFieldChange('status', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900">
+              <select value={form.status} onChange={e => handleFieldChange('status', e.target.value)} className="field-control">
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
                 <option value="Draft">Draft</option>
@@ -238,28 +238,28 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 text-sm">
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Selling price *</span>
-              <input type="number" step="0.01" required value={form.price} onChange={e => handleFieldChange('price', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="0.00" />
+              <input type="number" step="0.01" required value={form.price} onChange={e => handleFieldChange('price', e.target.value)} className="field-control" placeholder="0.00" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Cost price</span>
-              <input type="number" step="0.01" value={form.cost_price} onChange={e => handleFieldChange('cost_price', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="0.00" />
+              <input type="number" step="0.01" value={form.cost_price} onChange={e => handleFieldChange('cost_price', e.target.value)} className="field-control" placeholder="0.00" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">MRP</span>
-              <input type="number" step="0.01" value={form.mrp} onChange={e => handleFieldChange('mrp', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="0.00" />
+              <input type="number" step="0.01" value={form.mrp} onChange={e => handleFieldChange('mrp', e.target.value)} className="field-control" placeholder="0.00" />
             </label>
             <div className="hidden lg:block"></div>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Current stock *</span>
-              <input type="number" required value={form.stock} onChange={e => handleFieldChange('stock', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="0" />
+              <input type="number" required value={form.stock} onChange={e => handleFieldChange('stock', e.target.value)} className="field-control" placeholder="0" />
             </label>
             <label className="block">
               <span className="mb-1.5 block font-medium text-slate-700">Reorder level</span>
-              <input type="number" value={form.reorder_level} onChange={e => handleFieldChange('reorder_level', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="10" />
+              <input type="number" value={form.reorder_level} onChange={e => handleFieldChange('reorder_level', e.target.value)} className="field-control" placeholder="10" />
             </label>
             <label className="block lg:col-span-2">
               <span className="mb-1.5 block font-medium text-slate-700">Storage location</span>
-              <input type="text" value={form.location} onChange={e => handleFieldChange('location', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Rack C2 / Cold Zone" />
+              <input type="text" value={form.location} onChange={e => handleFieldChange('location', e.target.value)} className="field-control" placeholder="Rack C2 / Cold Zone" />
             </label>
           </div>
         </div>
@@ -272,11 +272,11 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
             <div className="space-y-6 text-sm">
               <label className="block">
                 <span className="mb-1.5 block font-medium text-slate-700">Supplier name</span>
-                <input type="text" value={form.supplier_name} onChange={e => handleFieldChange('supplier_name', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Warehouse Foods Inc." />
+                <input type="text" value={form.supplier_name} onChange={e => handleFieldChange('supplier_name', e.target.value)} className="field-control" placeholder="Warehouse Foods Inc." />
               </label>
               <label className="block">
                 <span className="mb-1.5 block font-medium text-slate-700">Supplier phone</span>
-                <input type="text" value={form.supplier_phone} onChange={e => handleFieldChange('supplier_phone', e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="+1 123 456 7890" />
+                <input type="text" value={form.supplier_phone} onChange={e => handleFieldChange('supplier_phone', e.target.value)} className="field-control" placeholder="+1 123 456 7890" />
               </label>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
                       void handleImageUpload(e.target.files?.[0] ?? null);
                       e.currentTarget.value = '';
                     }}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white focus:border-slate-900"
+                    className="field-control file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
                   />
                 </label>
                 <div className="flex flex-wrap gap-2 pt-2">
@@ -314,7 +314,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
                     <button
                       type="button"
                       onClick={() => handleFieldChange('image_url', '')}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="secondary-action px-3 py-1.5 text-xs font-semibold"
                     >
                       Remove
                     </button>
@@ -331,14 +331,14 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            className="secondary-action px-6 py-2.5 text-sm font-semibold transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-xl bg-slate-900 px-8 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="primary-action px-8 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? 'Saving...' : productId ? 'Update Product' : 'Save Product'}
           </button>

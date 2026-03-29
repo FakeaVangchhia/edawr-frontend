@@ -23,6 +23,13 @@ const marginPercent = (product: Product) => {
   return ((product.price - product.cost_price) / product.price) * 100;
 };
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value);
+
 export default function ProductsList({ onEditProduct }: ProductsListProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,13 +63,13 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="panel rounded-[1.75rem]">
+        <div className="flex w-full flex-col gap-4 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-lg font-bold text-slate-950">Product registry</h3>
             <p className="mt-1 text-sm text-slate-500">Search, review stock health, inspect suppliers and reopen a SKU for editing.</p>
           </div>
-          <div className="flex gap-4 w-full max-w-xl">
+          <div className="flex w-full max-w-xl gap-4">
             <label className="relative block flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -70,12 +77,12 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name, SKU, category, brand..."
-                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm focus:border-slate-900 focus:outline-none"
+                className="field-control py-2.5 pl-10 pr-3 text-sm"
               />
             </label>
             <button
               onClick={() => onEditProduct(null)}
-              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors whitespace-nowrap"
+              className="primary-action whitespace-nowrap px-5 py-2.5 text-sm font-semibold transition-colors"
             >
               Add Product
             </button>
@@ -129,7 +136,7 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
                 <tr key={product.id} className="align-top hover:bg-slate-50/70">
                   <td className="px-6 py-5">
                     <div className="flex gap-3">
-                      <div className="h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 flex-shrink-0">
+                      <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                         {product.image_url ? (
                           <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
                         ) : (
@@ -149,16 +156,16 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{product.unit}</span>
                         </div>
                         {product.description && (
-                          <p className="mt-3 max-w-xs text-sm text-slate-500 line-clamp-2">{product.description}</p>
+                          <p className="mt-3 line-clamp-2 max-w-xs text-sm text-slate-500">{product.description}</p>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600">
                     <div className="space-y-1.5">
-                      <div className="flex justify-between gap-6"><span>Selling</span><span className="font-semibold text-slate-900">${product.price.toFixed(2)}</span></div>
-                      <div className="flex justify-between gap-6"><span>Cost</span><span>${product.cost_price.toFixed(2)}</span></div>
-                      <div className="flex justify-between gap-6"><span>MRP</span><span>${product.mrp.toFixed(2)}</span></div>
+                      <div className="flex justify-between gap-6"><span>Selling</span><span className="font-semibold text-slate-900">{formatCurrency(product.price)}</span></div>
+                      <div className="flex justify-between gap-6"><span>Cost</span><span>{formatCurrency(product.cost_price)}</span></div>
+                      <div className="flex justify-between gap-6"><span>MRP</span><span>{formatCurrency(product.mrp)}</span></div>
                       <div className="flex justify-between gap-6"><span>Margin</span><span className="font-semibold text-emerald-700">{marginPercent(product).toFixed(1)}%</span></div>
                     </div>
                   </td>
@@ -190,7 +197,7 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
                   <td className="px-6 py-5">
                     <button
                       onClick={() => onEditProduct(product.id)}
-                      className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900 flex items-center gap-2"
+                      className="secondary-action flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors"
                     >
                       <Edit2 className="w-4 h-4" /> Edit
                     </button>

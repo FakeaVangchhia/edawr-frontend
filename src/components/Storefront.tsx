@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'react-qr-code';
 import {
   ArrowRight,
+  ListFilter,
   MessageCircle,
   Minus,
   Package,
+  Phone,
   Plus,
-  ShieldCheck,
-  ShoppingBasket,
-  Sparkles,
+  Search,
+  ShoppingCart,
   Store,
 } from 'lucide-react';
+import { useSocket } from '../hooks/useSocket';
 import { Product } from '../types';
 
 const FALLBACK_WHATSAPP_URL =
@@ -31,44 +33,97 @@ type StorefrontProps = {
 };
 
 export default function Storefront({ onOpenAdmin }: StorefrontProps) {
+  const { socket, isConnected } = useSocket();
   const [products, setProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [phone, setPhone] = useState('');
   const [whatsAppStatus, setWhatsAppStatus] = useState('');
   const [isStartingWhatsApp, setIsStartingWhatsApp] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadProducts = async () => {
-      setIsLoading(true);
-      setError('');
+      if (isMounted) {
+        setIsLoading(true);
+        setError('');
+      }
+
       try {
         const response = await fetch('/api/products');
         if (!response.ok) {
           throw new Error('Unable to load products right now.');
         }
+
         const data: Product[] = await response.json();
+        if (!isMounted) return;
+
         setProducts(data.filter(product => product.status === 'Active'));
       } catch (loadError) {
+        if (!isMounted) return;
         setError(loadError instanceof Error ? loadError.message : 'Unable to load products right now.');
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadProducts();
-  }, []);
+    void loadProducts();
 
-  const updateQuantity = (productId: number, nextQuantity: number) => {
-    setQuantities(current => {
-      if (nextQuantity <= 0) {
-        const { [productId]: _removed, ...rest } = current;
-        return rest;
+    const refreshCatalog = () => {
+      void loadProducts();
+    };
+
+    socket?.on('product:updated', refreshCatalog);
+
+    return () => {
+      isMounted = false;
+      socket?.off('product:updated', refreshCatalog);
+    };
+  }, [socket]);
+
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(products.map(product => product.category).filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+
+    return ['All', ...uniqueCategories];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return products.filter(product => {
+      const matchesCategory =
+        selectedCategory === 'All' || product.category === selectedCategory;
+
+      if (!matchesCategory) {
+        return false;
       }
-      return { ...current, [productId]: nextQuantity };
+
+      if (!query) {
+        return true;
+      }
+
+      return [
+        product.name,
+        product.category,
+        product.brand,
+        product.description,
+        product.sku,
+      ].some(value => value?.toLowerCase().includes(query));
     });
-  };
+  }, [products, searchQuery, selectedCategory]);
+
+  const availableProductsCount = useMemo(
+    () => products.filter(product => product.stock > 0).length,
+    [products]
+  );
 
   const selectedItems = useMemo(
     () =>
@@ -81,12 +136,25 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
     [products, quantities]
   );
 
+  const cartSummary = useMemo(() => {
+    return selectedItems.reduce(
+      (summary, item) => {
+        summary.quantity += item.quantity;
+        summary.total += item.quantity * item.price;
+        return summary;
+      },
+      { quantity: 0, total: 0 }
+    );
+  }, [selectedItems]);
+
   const orderMessage = useMemo(() => {
     if (!selectedItems.length) {
       return 'Hi eDawr, I want to place an order.';
     }
 
-    return selectedItems.map(item => `${item.quantity} ${item.name}`).join(', ');
+    return `Hi eDawr, I want to place an order for: ${selectedItems
+      .map(item => `${item.quantity} ${item.name}`)
+      .join(', ')}.`;
   }, [selectedItems]);
 
   const checkoutUrl = useMemo(() => {
@@ -94,11 +162,20 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
     if (/([?&])text=/.test(whatsappUrl)) {
       return whatsappUrl;
     }
+
     return `${whatsappUrl}${separator}text=${encodeURIComponent(orderMessage)}`;
   }, [orderMessage]);
 
-  const totalItems = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = selectedItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const updateQuantity = (productId: number, nextQuantity: number) => {
+    setQuantities(current => {
+      if (nextQuantity <= 0) {
+        const { [productId]: _removed, ...rest } = current;
+        return rest;
+      }
+
+      return { ...current, [productId]: nextQuantity };
+    });
+  };
 
   const handleStartTemplate = async () => {
     if (!phone.trim()) {
@@ -127,225 +204,296 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_32%),linear-gradient(180deg,#f8fafc_0%,#ecfdf5_52%,#f8fafc_100%)] text-slate-950">
-      <header className="border-b border-emerald-100 bg-white/80 backdrop-blur">
+    <div className="min-h-screen bg-transparent text-slate-950">
+      <header className="border-b border-slate-200 bg-white/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/15">
               <Store className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-black tracking-tight">eDawr</div>
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">WhatsApp-first ordering</div>
+              <div className="text-lg font-extrabold tracking-tight">eDawr</div>
+              <div className="text-sm text-slate-500">Products</div>
             </div>
           </div>
-          <button
-            onClick={onOpenAdmin}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
-          >
-            Open Admin
-          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 sm:block">
+              {isConnected ? 'Live catalog connected' : 'Catalog offline'}
+            </div>
+            <button
+              onClick={onOpenAdmin}
+              className="secondary-action rounded-full px-4 py-2 text-sm font-semibold transition"
+            >
+              Open Admin
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <section className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
-          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)] backdrop-blur">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
-              <Sparkles className="h-4 w-4" />
-              Shop and order directly on WhatsApp
-            </div>
-            <h1 className="mt-5 max-w-2xl text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              Let customers discover products and start ordering in one tap.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Browse the live catalog, pick quantities, and either send the Meta starter template or launch WhatsApp with a ready-to-send order message.
-            </p>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-6">
+            <section className="panel rounded-[2rem] p-6 sm:p-8">
+              <div className="space-y-6">
+                <div className="max-w-3xl">
+                  <div className="section-label">Online Store</div>
+                  <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">
+                    Clean product list.
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+                    Search, filter, and order from a tidy catalog.
+                  </p>
+                </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-3xl border border-emerald-100 bg-emerald-50/80 p-4">
-                <div className="text-sm font-semibold text-emerald-700">Catalog sync</div>
-                <div className="mt-2 text-2xl font-black text-slate-950">{products.length}</div>
-                <div className="text-sm text-slate-600">active products shown to customers</div>
-              </div>
-              <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4">
-                <div className="text-sm font-semibold text-amber-700">Cart items</div>
-                <div className="mt-2 text-2xl font-black text-slate-950">{totalItems}</div>
-                <div className="text-sm text-slate-600">products prepared for WhatsApp</div>
-              </div>
-              <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-4">
-                <div className="text-sm font-semibold text-sky-700">Order value</div>
-                <div className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(totalAmount)}</div>
-                <div className="text-sm text-slate-600">estimated basket total</div>
-              </div>
-            </div>
-          </div>
-
-          <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_24px_80px_-32px_rgba(15,23,42,0.55)]">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <MessageCircle className="h-5 w-5" />
-              <span className="text-sm font-semibold uppercase tracking-[0.24em]">Order on WhatsApp</span>
-            </div>
-            <p className="mt-4 text-2xl font-black tracking-tight">Ready-to-send message</p>
-            
-            <div className="mt-6 flex flex-col items-center rounded-3xl bg-white p-6">
-              <QRCode value={checkoutUrl} size={160} />
-              <p className="mt-4 text-center text-sm font-semibold text-slate-500">
-                Scan with your phone to order
-              </p>
-            </div>
-
-            <div className="mt-6 rounded-3xl bg-white/8 p-4 text-sm leading-7 text-slate-100">
-              {orderMessage}
-            </div>
-
-            <label className="mt-6 block">
-              <span className="mb-2 block text-sm font-semibold text-slate-200">Or send starter to number</span>
-              <input
-                type="tel"
-                value={phone}
-                onChange={event => setPhone(event.target.value)}
-                placeholder="Enter your mobile numer"
-                className="w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-emerald-400"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={handleStartTemplate}
-              disabled={isStartingWhatsApp}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-white/8 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isStartingWhatsApp ? 'Sending starter message...' : 'Send WhatsApp Starter Template'}
-            </button>
-            <a
-              href={checkoutUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-400"
-            >
-              Start on WhatsApp
-              <ArrowRight className="h-4 w-4" />
-            </a>
-            {whatsAppStatus && (
-              <div className="mt-3 rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-200">
-                {whatsAppStatus}
-              </div>
-            )}
-            <p className="mt-3 text-xs leading-6 text-slate-300">
-              Tip: the generated format uses values like <span className="font-mono">2 Milk, 1 Bread</span>, which your backend can already parse.
-            </p>
-
-            <div className="mt-8 grid gap-3">
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <ShoppingBasket className="mt-0.5 h-4 w-4 text-emerald-300" />
-                <div>
-                  <div className="text-sm font-semibold">Simple customer flow</div>
-                  <div className="mt-1 text-sm text-slate-300">Choose products here, confirm the message inside WhatsApp, and place the order.</div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="text-sm text-slate-500">Products</div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">{products.length}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="text-sm text-slate-500">In stock</div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">{availableProductsCount}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="text-sm text-slate-500">Categories</div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">{categories.length - 1}</div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-300" />
+            </section>
+
+            <section className="panel rounded-[2rem]">
+              <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold">Powered by live stock</div>
-                  <div className="mt-1 text-sm text-slate-300">Only active products are displayed, so the storefront stays aligned with your catalog.</div>
+                  <div className="section-label">Catalog</div>
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Items list</h2>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <label className="relative min-w-0 sm:w-72">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={event => setSearchQuery(event.target.value)}
+                      placeholder="Search items..."
+                      className="field-control py-2.5 pl-10 pr-3 text-sm"
+                    />
+                  </label>
+
+                  <label className="relative min-w-0 sm:w-52">
+                    <ListFilter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <select
+                      value={selectedCategory}
+                      onChange={event => setSelectedCategory(event.target.value)}
+                      className="field-control appearance-none py-2.5 pl-10 pr-8 text-sm"
+                    >
+                      {categories.map(category => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
-            </div>
-          </aside>
-        </section>
 
-        <section className="mt-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Product catalog</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight">Show the products and let users build an order</h2>
-            </div>
-          </div>
+              {isLoading ? (
+                <div className="px-6 py-12 text-center text-slate-500">Loading products...</div>
+              ) : error ? (
+                <div className="px-6 py-12 text-center text-rose-700">{error}</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="px-6 py-12 text-center text-slate-500">No products available yet.</div>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {filteredProducts.map(product => {
+                    const quantity = quantities[product.id] ?? 0;
+                    const isAvailable = product.stock > 0;
 
-          {isLoading ? (
-            <div className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
-              Loading products...
-            </div>
-          ) : error ? (
-            <div className="mt-6 rounded-[2rem] border border-rose-200 bg-rose-50 p-10 text-center text-rose-700 shadow-sm">
-              {error}
-            </div>
-          ) : products.length === 0 ? (
-            <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 shadow-sm">
-              No active products are available yet.
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {products.map(product => {
-                const quantity = quantities[product.id] ?? 0;
-                const isAvailable = product.stock > 0;
-
-                return (
-                  <article
-                    key={product.id}
-                    className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_-30px_rgba(15,23,42,0.55)]"
-                  >
-                    <div className="aspect-[4/3] bg-slate-100">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-slate-400">
-                          <Package className="h-12 w-12" />
+                    return (
+                      <article
+                        key={product.id}
+                        className="grid gap-4 px-6 py-5 md:grid-cols-[96px_minmax(0,1fr)_120px_136px] md:items-center"
+                      >
+                        <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-slate-400">
+                              <Package className="h-8 w-8" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="space-y-4 p-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="text-xl font-black tracking-tight text-slate-950">{product.name}</div>
-                          <div className="mt-1 text-sm text-slate-500">
-                            {product.category}{product.brand ? ` | ${product.brand}` : ''}
+
+                        <div className="min-w-0">
+                          <div className="flex flex-col gap-2">
+                            <div>
+                              <h3 className="text-lg font-bold text-slate-950">{product.name}</h3>
+                              <div className="mt-1 flex flex-wrap gap-2 text-sm text-slate-500">
+                                <span>{product.category}</span>
+                                {product.brand && <span>{product.brand}</span>}
+                                <span>{product.unit}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {product.description && (
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{product.description}</p>
+                          )}
+
+                          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                            {product.sku && <span>SKU: {product.sku}</span>}
+                            {product.location && <span>Location: {product.location}</span>}
+                            {product.supplier_name && <span>Supplier: {product.supplier_name}</span>}
                           </div>
                         </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${
-                            isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                          }`}
-                        >
-                          {isAvailable ? `${product.stock} in stock` : 'Out of stock'}
-                        </span>
-                      </div>
 
-                      {product.description && (
-                        <p className="text-sm leading-6 text-slate-600">{product.description}</p>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-2xl font-black text-slate-950">{formatCurrency(product.price)}</div>
-                          <div className="text-sm text-slate-500">per {product.unit}</div>
+                        <div className="flex flex-col items-start gap-3 md:items-end">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                              isAvailable ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {isAvailable ? `${product.stock} in stock` : 'Out of stock'}
+                          </span>
+                          <div className="text-left md:text-right">
+                            <div className="text-2xl font-black text-slate-950">{formatCurrency(product.price)}</div>
+                            <div className="text-sm text-slate-500">per {product.unit}</div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(product.id, quantity - 1)}
-                            disabled={quantity === 0}
-                            className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          <span className="min-w-8 text-center text-sm font-bold text-slate-950">{quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(product.id, quantity + 1)}
-                            disabled={!isAvailable || quantity >= product.stock}
-                            className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
+
+                        <div className="flex items-center justify-start md:justify-end">
+                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 shadow-inner">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(product.id, quantity - 1)}
+                              disabled={quantity === 0}
+                              className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="min-w-8 text-center text-sm font-bold text-slate-950">{quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(product.id, quantity + 1)}
+                              disabled={!isAvailable || quantity >= product.stock}
+                              className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <section className="panel rounded-[2rem] p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+                  <ShoppingCart className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-slate-950">Selected items</div>
+                  <div className="text-sm text-slate-500">{cartSummary.quantity} item(s) selected</div>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-5">
+                <div className="text-center">
+                  <QRCode value={checkoutUrl} size={148} />
+                  <div className="mt-3 text-sm font-medium text-slate-500">Scan to order</div>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {selectedItems.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                    Add items to prepare an order.
+                  </div>
+                ) : (
+                  selectedItems.map(item => (
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold text-slate-900">{item.name}</div>
+                          <div className="text-sm text-slate-500">
+                            {item.quantity} x {formatCurrency(item.price)}
+                          </div>
+                        </div>
+                        <div className="font-semibold text-slate-900">
+                          {formatCurrency(item.quantity * item.price)}
                         </div>
                       </div>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-900 px-4 py-4 text-white">
+                <div className="text-sm text-slate-300">Total</div>
+                <div className="mt-1 text-3xl font-black">{formatCurrency(cartSummary.total)}</div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
+                {orderMessage}
+              </div>
+
+              <a
+                href={checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
+              >
+                Order on WhatsApp
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </section>
+
+            <section className="panel rounded-[2rem] p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                  <Phone className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-slate-950">Send WhatsApp starter</div>
+                  <div className="text-sm text-slate-500">Start chat from a number.</div>
+                </div>
+              </div>
+
+              <label className="mt-5 block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">WhatsApp number</span>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={event => setPhone(event.target.value)}
+                  placeholder="Enter your mobile number"
+                  className="field-control text-sm"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleStartTemplate}
+                disabled={isStartingWhatsApp}
+                className="primary-action mt-4 inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {isStartingWhatsApp ? 'Sending...' : 'Send Starter Message'}
+              </button>
+
+              {whatsAppStatus && (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  {whatsAppStatus}
+                </div>
+              )}
+            </section>
+          </aside>
         </section>
       </main>
     </div>

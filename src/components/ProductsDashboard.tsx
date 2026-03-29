@@ -24,7 +24,7 @@ export default function ProductsDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Products Catalog</p>
+          <p className="section-label">Products Catalog</p>
           <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Manage your product offerings</h2>
           <p className="mt-2 max-w-3xl text-sm text-slate-600">
             Create and update products, manage categories, and oversee inventory listings.
@@ -32,23 +32,23 @@ export default function ProductsDashboard() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="panel inline-flex gap-2 rounded-2xl p-2">
         <button
           onClick={() => { setActiveTab('list'); setEditingProductId(null); }}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
             activeTab === 'list' || activeTab === 'edit'
-              ? 'border-slate-900 text-slate-900' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              ? 'bg-slate-900 text-white shadow-sm' 
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
           }`}
         >
           <Package className="w-4 h-4" /> Products
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
             activeTab === 'categories'
-              ? 'border-slate-900 text-slate-900' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              ? 'bg-slate-900 text-white shadow-sm' 
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
           }`}
         >
           <Tags className="w-4 h-4" /> Categories

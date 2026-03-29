@@ -67,9 +67,9 @@ export default function CategoriesList() {
 
   if (isEditing && editCategory) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div className="panel rounded-[1.75rem] p-6">
         <h3 className="text-lg font-bold text-slate-900 mb-4">{editCategory.id ? 'Edit Category' : 'New Category'}</h3>
-        {error && <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
+        {error && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
         
         <form onSubmit={handleSave} className="space-y-4 max-w-lg">
           <div>
@@ -79,7 +79,7 @@ export default function CategoriesList() {
               required
               value={editCategory.name || ''} 
               onChange={e => setEditCategory({...editCategory, name: e.target.value})}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="field-control"
             />
           </div>
           <div>
@@ -88,7 +88,7 @@ export default function CategoriesList() {
               rows={3}
               value={editCategory.description || ''} 
               onChange={e => setEditCategory({...editCategory, description: e.target.value})}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="field-control"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -97,7 +97,7 @@ export default function CategoriesList() {
               <select
                 value={editCategory.parent_id || ''}
                 onChange={e => setEditCategory({...editCategory, parent_id: e.target.value ? Number(e.target.value) : null})}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="field-control"
               >
                 <option value="">None (Top Level)</option>
                 {categories.filter(c => c.id !== editCategory.id).map(c => (
@@ -110,7 +110,7 @@ export default function CategoriesList() {
               <select
                 value={editCategory.status || 'Active'}
                 onChange={e => setEditCategory({...editCategory, status: e.target.value})}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="field-control"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -120,14 +120,14 @@ export default function CategoriesList() {
           <div className="flex gap-3 pt-4">
             <button
               type="submit"
-              className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800"
+              className="primary-action px-4 py-2 text-sm font-medium"
             >
               Save Category
             </button>
             <button
               type="button"
               onClick={() => { setIsEditing(false); setEditCategory(null); setError(''); }}
-              className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50"
+              className="secondary-action px-4 py-2 text-sm font-medium"
             >
               Cancel
             </button>
@@ -138,15 +138,18 @@ export default function CategoriesList() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-        <h3 className="font-semibold text-slate-800">Product Categories</h3>
+    <div className="panel overflow-hidden rounded-[1.75rem]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 bg-slate-50/80">
+        <div>
+          <p className="section-label">Taxonomy</p>
+          <h3 className="mt-1 font-semibold text-slate-900">Product Categories</h3>
+        </div>
         <button 
           onClick={() => {
             setEditCategory({ name: '', description: '', status: 'Active', parent_id: null });
             setIsEditing(true);
           }}
-          className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
+          className="primary-action flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" /> New Category
         </button>
@@ -168,7 +171,7 @@ export default function CategoriesList() {
                 <td className="px-6 py-4 text-slate-500">{c.description || '-'}</td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                    ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
+                    ${c.status === 'Active' ? 'bg-teal-50 text-teal-800' : 'bg-slate-100 text-slate-700'}`}>
                     {c.status}
                   </span>
                 </td>

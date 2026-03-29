@@ -77,6 +77,13 @@ const marginPercent = (product: Product) => {
   return ((product.price - product.cost_price) / product.price) * 100;
 };
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value);
+
 export default function ManagerDashboard() {
   const { socket } = useSocket();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -278,11 +285,11 @@ export default function ManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-transparent">
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm shadow-slate-900/20">
               <Warehouse className="h-5 w-5" />
             </div>
             <div>
@@ -290,28 +297,28 @@ export default function ManagerDashboard() {
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Operations Console</p>
             </div>
           </div>
-          <nav className="flex gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+          <nav className="panel flex gap-2 rounded-2xl p-1.5">
             <button
               onClick={() => setActiveTab('orders')}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'orders' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'orders' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               Orders
             </button>
             <button
             onClick={() => setActiveTab('products')}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'products' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'products' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
           >
             Products
           </button>
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               Inventory
             </button>
             <button
               onClick={() => setActiveTab('whatsapp')}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'whatsapp' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'whatsapp' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               WhatsApp Chats
             </button>
@@ -365,13 +372,13 @@ export default function ManagerDashboard() {
                         {order.items?.map(item => (
                           <li key={item.id} className="flex justify-between text-sm">
                             <span className="text-slate-700">{item.quantity}x {item.name}</span>
-                            <span className="font-mono text-slate-500">${(item.price * item.quantity).toFixed(2)}</span>
+                            <span className="font-mono text-slate-500">{formatCurrency(item.price * item.quantity)}</span>
                           </li>
                         ))}
                       </ul>
                       <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-sm font-medium">
                         <span>Total</span>
-                        <span>${order.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2) || '0.00'}</span>
+                        <span>{formatCurrency(order.items?.reduce((acc, item) => acc + (item.price * item.quantity), 0) ?? 0)}</span>
                       </div>
                     </div>
 
@@ -753,9 +760,9 @@ export default function ManagerDashboard() {
                             </td>
                             <td className="px-6 py-5 text-sm text-slate-600">
                               <div className="space-y-1.5">
-                                <div className="flex justify-between gap-6"><span>Selling</span><span className="font-semibold text-slate-900">${product.price.toFixed(2)}</span></div>
-                                <div className="flex justify-between gap-6"><span>Cost</span><span>${product.cost_price.toFixed(2)}</span></div>
-                                <div className="flex justify-between gap-6"><span>MRP</span><span>${product.mrp.toFixed(2)}</span></div>
+                                <div className="flex justify-between gap-6"><span>Selling</span><span className="font-semibold text-slate-900">{formatCurrency(product.price)}</span></div>
+                                <div className="flex justify-between gap-6"><span>Cost</span><span>{formatCurrency(product.cost_price)}</span></div>
+                                <div className="flex justify-between gap-6"><span>MRP</span><span>{formatCurrency(product.mrp)}</span></div>
                                 <div className="flex justify-between gap-6"><span>Margin</span><span className="font-semibold text-emerald-700">{marginPercent(product).toFixed(1)}%</span></div>
                               </div>
                             </td>
