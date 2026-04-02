@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '../types';
 import { Box, Edit2, Image as ImageIcon, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
-import { assetUrl, apiUrl } from '../lib/api';
+import { assetUrl, authFetch } from '../lib/api';
 
 interface ProductsListProps {
   onEditProduct: (id: number | null) => void;
@@ -36,7 +36,7 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchProducts = () => {
-    fetch(apiUrl('/api/products'))
+    authFetch('/api/products')
       .then(r => r.json())
       .then(setProducts)
       .catch(console.error);

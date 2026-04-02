@@ -1,11 +1,11 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { ArrowLeft, LockKeyhole, Store, User as UserIcon } from 'lucide-react';
 import { apiUrl } from '../lib/api';
-import { User } from '../types';
+import { AdminSession } from '../types';
 
 type AdminLoginProps = {
   onBackToStore: () => void;
-  onLogin: (user: User) => void;
+  onLogin: (session: AdminSession) => void;
 };
 
 export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) {
@@ -15,7 +15,7 @@ export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) 
   const [error, setError] = useState('');
 
   const helperText = useMemo(
-    () => 'This frontend uses your manager name and phone from the current backend API.',
+    () => 'Use the backend admin username and password configured on the server.',
     []
   );
 
@@ -23,8 +23,8 @@ export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) 
     event.preventDefault();
     setError('');
 
-    const normalizedUsername = username.trim().toLowerCase();
-    const normalizedPassword = password.replace(/\D/g, '');
+    const normalizedUsername = username.trim();
+    const normalizedPassword = password;
 
     if (!normalizedUsername || !normalizedPassword) {
       setError('Enter username and password.');
@@ -33,27 +33,26 @@ export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) 
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(apiUrl('/api/users'));
-      if (!response.ok) {
-        throw new Error('Unable to verify login.');
-      }
-
-      const users: User[] = await response.json();
-      const matchedUser = users.find(user => {
-        return (
-          user.role === 'manager' &&
-          user.name.trim().toLowerCase() === normalizedUsername &&
-          user.phone.replace(/\D/g, '') === normalizedPassword
-        );
+      const response = await fetch(apiUrl('/api/admin/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: normalizedUsername,
+          password: normalizedPassword,
+        }),
       });
-
-      if (!matchedUser) {
-        throw new Error('Invalid manager credentials.');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.detail || 'Unable to sign in.');
       }
 
-      onLogin(matchedUser);
+      const data = await response.json();
+      onLogin({
+        username: normalizedUsername,
+        accessToken: data.access_token,
+      });
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Unable to verify login.');
+      setError(loginError instanceof Error ? loginError.message : 'Unable to sign in.');
     } finally {
       setIsSubmitting(false);
     }
@@ -71,21 +70,21 @@ export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) 
             Sign in to open the dashboard.
           </h1>
           <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-            Clean frontend login, aligned with the current backend users API.
+            Frontend admin access now uses the backend JWT login endpoint.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
               <div className="text-sm text-slate-500">Access</div>
-              <div className="mt-1 text-xl font-black text-slate-950">Manager</div>
+              <div className="mt-1 text-xl font-black text-slate-950">Admin</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
               <div className="text-sm text-slate-500">Username</div>
-              <div className="mt-1 text-xl font-black text-slate-950">Name</div>
+              <div className="mt-1 text-xl font-black text-slate-950">Backend</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
               <div className="text-sm text-slate-500">Password</div>
-              <div className="mt-1 text-xl font-black text-slate-950">Phone</div>
+              <div className="mt-1 text-xl font-black text-slate-950">JWT Auth</div>
             </div>
           </div>
         </section>

@@ -28,6 +28,11 @@ export interface User {
   phone: string;
 }
 
+export interface AdminSession {
+  username: string;
+  accessToken: string;
+}
+
 export interface Category { // New interface
   id: number;
   name: string;

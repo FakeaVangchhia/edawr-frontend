@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react';
 import AdminShell from './components/AdminShell';
 import AdminLogin from './components/AdminLogin';
 import Storefront from './components/Storefront';
-import { User } from './types';
-
-const ADMIN_SESSION_KEY = 'edawr-admin-session';
+import { AdminSession } from './types';
+import { ADMIN_SESSION_KEY } from './lib/auth';
 
 export default function App() {
-  const storedAdmin = useMemo<User | null>(() => {
+  const storedAdmin = useMemo<AdminSession | null>(() => {
     if (typeof window === 'undefined') {
       return null;
     }
@@ -18,7 +17,7 @@ export default function App() {
     }
 
     try {
-      return JSON.parse(rawValue) as User;
+      return JSON.parse(rawValue) as AdminSession;
     } catch {
       window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
       return null;
@@ -39,13 +38,13 @@ export default function App() {
   }, [storedAdmin]);
 
   const [view, setView] = useState<'store' | 'login' | 'admin'>(initialView);
-  const [adminUser, setAdminUser] = useState<User | null>(storedAdmin);
+  const [adminUser, setAdminUser] = useState<AdminSession | null>(storedAdmin);
 
-  const handleLogin = (user: User) => {
-    setAdminUser(user);
+  const handleLogin = (session: AdminSession) => {
+    setAdminUser(session);
     setView('admin');
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(user));
+      window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
     }
   };
 

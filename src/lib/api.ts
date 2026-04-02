@@ -1,3 +1,5 @@
+import { getAdminAccessToken } from './auth';
+
 const rawApiBaseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || '';
 
 const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/+$/, '');
@@ -28,4 +30,18 @@ export const assetUrl = (path: string | null | undefined) => {
   }
 
   return apiUrl(path);
+};
+
+export const authFetch = (path: string, init: RequestInit = {}) => {
+  const token = getAdminAccessToken();
+  const headers = new Headers(init.headers || {});
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  return fetch(apiUrl(path), {
+    ...init,
+    headers,
+  });
 };

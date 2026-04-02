@@ -18,7 +18,7 @@ import {
   Users,
   Warehouse,
 } from 'lucide-react';
-import { apiUrl, assetUrl } from '../lib/api';
+import { authFetch, assetUrl } from '../lib/api';
 import ProductsDashboard from './ProductsDashboard';
 
 type Tab = 'orders' | 'products' | 'inventory' | 'whatsapp';
@@ -108,10 +108,10 @@ export default function ManagerDashboard() {
   }, [messages, selectedPhone]);
 
   useEffect(() => {
-    fetch(apiUrl('/api/orders')).then(r => r.json()).then(setOrders);
-    fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
-    fetch(apiUrl('/api/users')).then(r => r.json()).then(setUsers);
-    fetch(apiUrl('/api/messages')).then(r => r.json()).then(setMessages);
+    authFetch('/api/orders').then(r => r.json()).then(setOrders);
+    authFetch('/api/products').then(r => r.json()).then(setProducts);
+    authFetch('/api/users').then(r => r.json()).then(setUsers);
+    authFetch('/api/messages').then(r => r.json()).then(setMessages);
 
     if (socket) {
       socket.on('order:created', (order: Order) => {
@@ -121,10 +121,10 @@ export default function ManagerDashboard() {
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
       });
       socket.on('inventory:updated', () => {
-        fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
+        authFetch('/api/products').then(r => r.json()).then(setProducts);
       });
       socket.on('product:updated', () => {
-        fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
+        authFetch('/api/products').then(r => r.json()).then(setProducts);
       });
       socket.on('message:new', (msg: Message) => {
         setMessages(prev => [...prev, msg]);
@@ -179,7 +179,7 @@ export default function ManagerDashboard() {
   const deliveryBoys = users.filter(u => u.role === 'delivery');
 
   const assignDelivery = async (orderId: number, deliveryBoyId: number) => {
-    await fetch(apiUrl(`/api/orders/${orderId}/assign`), {
+    await authFetch(`/api/orders/${orderId}/assign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ delivery_boy_id: deliveryBoyId })
@@ -229,7 +229,7 @@ export default function ManagerDashboard() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(apiUrl('/api/uploads/products/image'), {
+      const response = await authFetch('/api/uploads/products/image', {
         method: 'POST',
         body: formData,
       });
@@ -272,9 +272,9 @@ export default function ManagerDashboard() {
 
     setIsSubmittingProduct(true);
     try {
-      const endpoint = selectedProductId ? apiUrl(`/api/products/${selectedProductId}`) : apiUrl('/api/products');
+      const endpoint = selectedProductId ? `/api/products/${selectedProductId}` : '/api/products';
       const method = selectedProductId ? 'PUT' : 'POST';
-      await fetch(endpoint, {
+      await authFetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -867,7 +867,7 @@ export default function ManagerDashboard() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         if (!replyText.trim()) return;
-                        fetch(apiUrl('/api/messages/send'), {
+                        authFetch('/api/messages/send', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ phone: selectedPhone, message: replyText })

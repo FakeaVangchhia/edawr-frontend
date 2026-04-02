@@ -1,9 +1,9 @@
 import { LogOut } from 'lucide-react';
 import ManagerDashboard from './ManagerDashboard';
-import { User } from '../types';
+import { AdminSession } from '../types';
 
 type AdminShellProps = {
-  adminUser: User;
+  adminUser: AdminSession;
   onBackToStore: () => void;
   onLogout: () => void;
 };
@@ -13,7 +13,7 @@ export default function AdminShell({ adminUser, onBackToStore, onLogout }: Admin
     <div className="relative min-h-screen bg-transparent">
       <div className="fixed right-4 top-4 z-20 flex items-center gap-3">
         <div className="hidden rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-600 shadow-lg backdrop-blur sm:block">
-          {adminUser.name}
+          {adminUser.username}
         </div>
         <button
           onClick={onBackToStore}

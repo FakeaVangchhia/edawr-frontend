@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Category, Product } from '../types';
 import { Image as ImageIcon, ArrowLeft } from 'lucide-react';
-import { apiUrl, assetUrl } from '../lib/api';
+import { authFetch, assetUrl } from '../lib/api';
 
 interface ProductEditorProps {
   productId: number | null;
@@ -56,7 +56,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
   const [imageError, setImageError] = useState('');
 
   useEffect(() => {
-    fetch(apiUrl('/api/categories')).then(r => r.json()).then((data) => {
+    authFetch('/api/categories').then(r => r.json()).then((data) => {
       setCategories(data);
       if (data.length > 0 && !productId) {
         setForm(prev => ({ ...prev, category: data[0].name }));
@@ -64,7 +64,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
     }).catch(console.error);
 
     if (productId) {
-      fetch(apiUrl('/api/products')).then(r => r.json()).then((products: Product[]) => {
+      authFetch('/api/products').then(r => r.json()).then((products: Product[]) => {
         const product = products.find(p => p.id === productId);
         if (product) {
           setForm({
@@ -104,7 +104,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(apiUrl('/api/uploads/products/image'), {
+      const response = await authFetch('/api/uploads/products/image', {
         method: 'POST',
         body: formData,
       });
@@ -148,9 +148,9 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
 
     setIsSubmitting(true);
     try {
-      const endpoint = productId ? apiUrl(`/api/products/${productId}`) : apiUrl('/api/products');
+      const endpoint = productId ? `/api/products/${productId}` : '/api/products';
       const method = productId ? 'PUT' : 'POST';
-      const res = await fetch(endpoint, {
+      const res = await authFetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

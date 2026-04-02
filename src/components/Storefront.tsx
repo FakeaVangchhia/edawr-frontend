@@ -48,6 +48,11 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
   useEffect(() => {
     let isMounted = true;
 
+    const normalizeProduct = (product: Product & { category_name?: string }) => ({
+      ...product,
+      category: product.category || product.category_name || '',
+    });
+
     const loadProducts = async () => {
       if (isMounted) {
         setIsLoading(true);
@@ -55,15 +60,15 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
       }
 
       try {
-        const response = await fetch(apiUrl('/api/products'));
+        const response = await fetch(apiUrl('/api/store/products'));
         if (!response.ok) {
           throw new Error('Unable to load products right now.');
         }
 
-        const data: Product[] = await response.json();
+        const data: Array<Product & { category_name?: string }> = await response.json();
         if (!isMounted) return;
 
-        setProducts(data.filter(product => product.status === 'Active'));
+        setProducts(data.map(normalizeProduct));
       } catch (loadError) {
         if (!isMounted) return;
         setError(loadError instanceof Error ? loadError.message : 'Unable to load products right now.');
