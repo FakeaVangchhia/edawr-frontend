@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { ArrowLeft, LockKeyhole, Store, User as UserIcon } from 'lucide-react';
+import { apiUrl } from '../lib/api';
 import { User } from '../types';
 
 type AdminLoginProps = {
@@ -32,7 +33,7 @@ export default function AdminLogin({ onBackToStore, onLogin }: AdminLoginProps) 
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch(apiUrl('/api/users'));
       if (!response.ok) {
         throw new Error('Unable to verify login.');
       }

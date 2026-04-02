@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Category, Product } from '../types';
 import { Image as ImageIcon, ArrowLeft } from 'lucide-react';
+import { apiUrl, assetUrl } from '../lib/api';
 
 interface ProductEditorProps {
   productId: number | null;
@@ -55,7 +56,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
   const [imageError, setImageError] = useState('');
 
   useEffect(() => {
-    fetch('/api/categories').then(r => r.json()).then((data) => {
+    fetch(apiUrl('/api/categories')).then(r => r.json()).then((data) => {
       setCategories(data);
       if (data.length > 0 && !productId) {
         setForm(prev => ({ ...prev, category: data[0].name }));
@@ -63,7 +64,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
     }).catch(console.error);
 
     if (productId) {
-      fetch('/api/products').then(r => r.json()).then((products: Product[]) => {
+      fetch(apiUrl('/api/products')).then(r => r.json()).then((products: Product[]) => {
         const product = products.find(p => p.id === productId);
         if (product) {
           setForm({
@@ -103,7 +104,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/uploads/products/image', {
+      const response = await fetch(apiUrl('/api/uploads/products/image'), {
         method: 'POST',
         body: formData,
       });
@@ -147,7 +148,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
 
     setIsSubmitting(true);
     try {
-      const endpoint = productId ? `/api/products/${productId}` : '/api/products';
+      const endpoint = productId ? apiUrl(`/api/products/${productId}`) : apiUrl('/api/products');
       const method = productId ? 'PUT' : 'POST';
       const res = await fetch(endpoint, {
         method,
@@ -288,7 +289,7 @@ export default function ProductEditor({ productId, onClose }: ProductEditorProps
             <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
               <div className="overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 flex-shrink-0">
                 {form.image_url ? (
-                  <img src={form.image_url} alt={form.name || 'Product preview'} className="h-40 w-full object-cover" />
+                  <img src={assetUrl(form.image_url)} alt={form.name || 'Product preview'} className="h-40 w-full object-cover" />
                 ) : (
                   <div className="flex h-40 flex-col items-center justify-center gap-2 text-slate-400">
                     <ImageIcon className="h-8 w-8" />

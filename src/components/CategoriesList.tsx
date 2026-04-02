@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Category } from '../types';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { apiUrl } from '../lib/api';
 
 export default function CategoriesList() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -9,7 +10,7 @@ export default function CategoriesList() {
   const [error, setError] = useState('');
 
   const fetchCategories = () => {
-    fetch('/api/categories')
+    fetch(apiUrl('/api/categories'))
       .then(r => r.json())
       .then(setCategories)
       .catch(console.error);
@@ -25,7 +26,7 @@ export default function CategoriesList() {
     
     setError('');
     try {
-      const url = editCategory.id ? `/api/categories/${editCategory.id}` : '/api/categories';
+      const url = editCategory.id ? apiUrl(`/api/categories/${editCategory.id}`) : apiUrl('/api/categories');
       const method = editCategory.id ? 'PUT' : 'POST';
       
       const res = await fetch(url, {
@@ -55,7 +56,7 @@ export default function CategoriesList() {
     if (!window.confirm('Are you sure you want to delete this category?')) return;
     
     try {
-      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/api/categories/${id}`), { method: 'DELETE' });
       if (!res.ok) {
         throw new Error((await res.json()).detail || 'Failed to delete category');
       }

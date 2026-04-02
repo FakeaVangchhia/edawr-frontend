@@ -18,6 +18,7 @@ import {
   Users,
   Warehouse,
 } from 'lucide-react';
+import { apiUrl, assetUrl } from '../lib/api';
 import ProductsDashboard from './ProductsDashboard';
 
 type Tab = 'orders' | 'products' | 'inventory' | 'whatsapp';
@@ -107,10 +108,10 @@ export default function ManagerDashboard() {
   }, [messages, selectedPhone]);
 
   useEffect(() => {
-    fetch('/api/orders').then(r => r.json()).then(setOrders);
-    fetch('/api/products').then(r => r.json()).then(setProducts);
-    fetch('/api/users').then(r => r.json()).then(setUsers);
-    fetch('/api/messages').then(r => r.json()).then(setMessages);
+    fetch(apiUrl('/api/orders')).then(r => r.json()).then(setOrders);
+    fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
+    fetch(apiUrl('/api/users')).then(r => r.json()).then(setUsers);
+    fetch(apiUrl('/api/messages')).then(r => r.json()).then(setMessages);
 
     if (socket) {
       socket.on('order:created', (order: Order) => {
@@ -120,10 +121,10 @@ export default function ManagerDashboard() {
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
       });
       socket.on('inventory:updated', () => {
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
       });
       socket.on('product:updated', () => {
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch(apiUrl('/api/products')).then(r => r.json()).then(setProducts);
       });
       socket.on('message:new', (msg: Message) => {
         setMessages(prev => [...prev, msg]);
@@ -178,7 +179,7 @@ export default function ManagerDashboard() {
   const deliveryBoys = users.filter(u => u.role === 'delivery');
 
   const assignDelivery = async (orderId: number, deliveryBoyId: number) => {
-    await fetch(`/api/orders/${orderId}/assign`, {
+    await fetch(apiUrl(`/api/orders/${orderId}/assign`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ delivery_boy_id: deliveryBoyId })
@@ -228,7 +229,7 @@ export default function ManagerDashboard() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/uploads/products/image', {
+      const response = await fetch(apiUrl('/api/uploads/products/image'), {
         method: 'POST',
         body: formData,
       });
@@ -271,7 +272,7 @@ export default function ManagerDashboard() {
 
     setIsSubmittingProduct(true);
     try {
-      const endpoint = selectedProductId ? `/api/products/${selectedProductId}` : '/api/products';
+      const endpoint = selectedProductId ? apiUrl(`/api/products/${selectedProductId}`) : apiUrl('/api/products');
       const method = selectedProductId ? 'PUT' : 'POST';
       await fetch(endpoint, {
         method,
@@ -586,7 +587,7 @@ export default function ManagerDashboard() {
                     <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
                       <div className="overflow-hidden rounded-3xl border border-dashed border-slate-300 bg-slate-50">
                         {productForm.image_url ? (
-                          <img src={productForm.image_url} alt={productForm.name || 'Product preview'} className="h-44 w-full object-cover" />
+                          <img src={assetUrl(productForm.image_url)} alt={productForm.name || 'Product preview'} className="h-44 w-full object-cover" />
                         ) : (
                           <div className="flex h-44 flex-col items-center justify-center gap-2 text-slate-400">
                             <ImageIcon className="h-8 w-8" />
@@ -737,7 +738,7 @@ export default function ManagerDashboard() {
                               <div className="flex gap-3">
                                 <div className="h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                                   {product.image_url ? (
-                                    <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                                    <img src={assetUrl(product.image_url)} alt={product.name} className="h-full w-full object-cover" />
                                   ) : (
                                     <div className="flex h-full w-full items-center justify-center text-slate-600">
                                       <Box className="h-5 w-5" />
@@ -866,7 +867,7 @@ export default function ManagerDashboard() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         if (!replyText.trim()) return;
-                        fetch('/api/messages/send', {
+                        fetch(apiUrl('/api/messages/send'), {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ phone: selectedPhone, message: replyText })

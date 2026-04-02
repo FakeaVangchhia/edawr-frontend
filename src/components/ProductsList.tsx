@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '../types';
 import { Box, Edit2, Image as ImageIcon, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
+import { assetUrl, apiUrl } from '../lib/api';
 
 interface ProductsListProps {
   onEditProduct: (id: number | null) => void;
@@ -35,7 +36,7 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchProducts = () => {
-    fetch('/api/products')
+    fetch(apiUrl('/api/products'))
       .then(r => r.json())
       .then(setProducts)
       .catch(console.error);
@@ -138,7 +139,7 @@ export default function ProductsList({ onEditProduct }: ProductsListProps) {
                     <div className="flex gap-3">
                       <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                          <img src={assetUrl(product.image_url)} alt={product.name} className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-slate-600">
                             <Box className="h-5 w-5" />

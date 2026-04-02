@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageSquare, Send } from 'lucide-react';
+import { apiUrl } from '../lib/api';
 
 export default function WhatsAppSimulator() {
   const [message, setMessage] = useState('');
@@ -12,7 +13,7 @@ export default function WhatsAppSimulator() {
 
     setStatus('Sending...');
     try {
-      const res = await fetch('/api/webhook/whatsapp', {
+      const res = await fetch(apiUrl('/api/webhook/whatsapp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, message })

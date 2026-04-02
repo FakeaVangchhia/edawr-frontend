@@ -13,6 +13,7 @@ import {
   Store,
 } from 'lucide-react';
 import { useSocket } from '../hooks/useSocket';
+import { apiUrl, assetUrl } from '../lib/api';
 import { Product } from '../types';
 
 const FALLBACK_WHATSAPP_URL =
@@ -54,7 +55,7 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
       }
 
       try {
-        const response = await fetch('/api/products');
+        const response = await fetch(apiUrl('/api/products'));
         if (!response.ok) {
           throw new Error('Unable to load products right now.');
         }
@@ -186,7 +187,7 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
     setIsStartingWhatsApp(true);
     setWhatsAppStatus('');
     try {
-      const response = await fetch('/api/whatsapp/start', {
+      const response = await fetch(apiUrl('/api/whatsapp/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -318,7 +319,7 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
                       >
                         <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                           {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                            <img src={assetUrl(product.image_url)} alt={product.name} className="h-full w-full object-cover" />
                           ) : (
                             <div className="flex h-full items-center justify-center text-slate-400">
                               <Package className="h-8 w-8" />

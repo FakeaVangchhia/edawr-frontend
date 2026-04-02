@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { API_BASE_URL } from '../lib/api';
 
 let socket: Socket | null = null;
 
@@ -8,8 +9,7 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!socket) {
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      socket = io(apiUrl);
+      socket = io(API_BASE_URL || undefined);
     }
 
     const onConnect = () => setIsConnected(true);
