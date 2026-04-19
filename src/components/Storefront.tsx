@@ -155,7 +155,7 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
 
   const orderMessage = useMemo(() => {
     if (!selectedItems.length) {
-      return 'Hi eDawr, I want to place an order.';
+      return '/dawr';
     }
 
     return `Hi eDawr, I want to place an order for: ${selectedItems
