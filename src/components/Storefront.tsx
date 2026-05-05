@@ -16,11 +16,21 @@ import { useSocket } from '../hooks/useSocket';
 import { apiUrl, assetUrl } from '../lib/api';
 import { Product } from '../types';
 
-const FALLBACK_WHATSAPP_URL =
-  'https://wa.me/918787698473?text=Hi%20eDawr%2C%20I%20want%20to%20place%20an%20order.';
+const FALLBACK_WHATSAPP_URL = 'https://wa.me/918787698473';
 
 const whatsappUrl =
   (import.meta.env.VITE_WHATSAPP_URL as string | undefined)?.trim() || FALLBACK_WHATSAPP_URL;
+
+const buildWhatsAppUrl = (message: string) => {
+  try {
+    const url = new URL(whatsappUrl);
+    url.searchParams.set('text', message);
+    return url.toString();
+  } catch {
+    const [baseUrl] = whatsappUrl.split('?');
+    return `${baseUrl}?text=${encodeURIComponent(message)}`;
+  }
+};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-IN', {
@@ -158,18 +168,15 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
       return '/dawr';
     }
 
-    return `Hi eDawr, I want to place an order for: ${selectedItems
+    return selectedItems
       .map(item => `${item.quantity} ${item.name}`)
-      .join(', ')}.`;
+      .join(', ');
   }, [selectedItems]);
 
-  const checkoutUrl = useMemo(() => {
-    const separator = whatsappUrl.includes('?') ? '&' : '?';
-    if (/([?&])text=/.test(whatsappUrl)) {
-      return whatsappUrl;
-    }
+  const dawrUrl = useMemo(() => buildWhatsAppUrl('/dawr'), []);
 
-    return `${whatsappUrl}${separator}text=${encodeURIComponent(orderMessage)}`;
+  const checkoutUrl = useMemo(() => {
+    return buildWhatsAppUrl(orderMessage);
   }, [orderMessage]);
 
   const updateQuantity = (productId: number, nextQuantity: number) => {
@@ -412,8 +419,8 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
 
               <div className="mt-5 flex items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-5">
                 <div className="text-center">
-                  <QRCode value={checkoutUrl} size={148} />
-                  <div className="mt-3 text-sm font-medium text-slate-500">Scan to order</div>
+                  <QRCode value={dawrUrl} size={148} />
+                  <div className="mt-3 text-sm font-medium text-slate-500">Scan to open Dawr</div>
                 </div>
               </div>
 
@@ -447,7 +454,7 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
               </div>
 
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-                {orderMessage}
+                {selectedItems.length ? orderMessage : 'Scan the QR code to send /dawr on WhatsApp.'}
               </div>
 
               <a

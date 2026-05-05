@@ -42,6 +42,10 @@ type ProductFormState = {
   image_url: string;
 };
 
+type ManagerDashboardProps = {
+  headerActions?: React.ReactNode;
+};
+
 const emptyProductForm = (): ProductFormState => ({
   name: '',
   sku: '',
@@ -85,7 +89,7 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-export default function ManagerDashboard() {
+export default function ManagerDashboard({ headerActions }: ManagerDashboardProps) {
   const { socket } = useSocket();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -288,17 +292,17 @@ export default function ManagerDashboard() {
   return (
     <div className="min-h-screen bg-transparent">
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm shadow-slate-900/20">
               <Warehouse className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-xl font-bold tracking-tight text-slate-900">eDawr Admin</h1>
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Operations Console</p>
             </div>
           </div>
-          <nav className="panel flex gap-2 rounded-2xl p-1.5">
+          <nav className="panel flex flex-wrap gap-2 rounded-2xl p-1.5">
             <button
               onClick={() => setActiveTab('orders')}
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'orders' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -324,6 +328,7 @@ export default function ManagerDashboard() {
               WhatsApp Chats
             </button>
           </nav>
+          {headerActions ? <div className="ml-auto">{headerActions}</div> : null}
         </div>
       </header>
 
