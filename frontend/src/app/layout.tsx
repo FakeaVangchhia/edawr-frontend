@@ -16,7 +16,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: 'eDawr - Online Store',
-  description: 'Order fresh products directly on WhatsApp with our clean online catalog.',
+  description: 'Browse and order fresh products from our clean online catalog.',
 };
 
 export default function RootLayout({

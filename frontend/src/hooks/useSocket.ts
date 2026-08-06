@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { API_BASE_URL } from '../lib/api';
+
+// A realtime socket server is optional. Only connect when NEXT_PUBLIC_SOCKET_URL
+// is explicitly configured — otherwise the client would repeatedly fail to reach
+// a same-origin server that does not exist. Dashboards fall back to REST polling.
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
 
 let socket: Socket | null = null;
 
@@ -8,10 +12,10 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !SOCKET_URL) return;
 
     if (!socket) {
-      socket = io(API_BASE_URL || undefined);
+      socket = io(SOCKET_URL);
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect

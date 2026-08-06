@@ -6,7 +6,7 @@ import AdminShell from '@/components/AdminShell';
 import AdminLogin from '@/components/AdminLogin';
 import { AdminSession } from '@/types';
 import { ADMIN_SESSION_KEY } from '@/lib/auth';
-import { createClient } from '@/utils/supabase/client';
+import { authFetch } from '@/lib/api';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -14,17 +14,16 @@ export default function AdminPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [errorParam, setErrorParam] = useState<string | null>(null);
 
-  const supabase = createClient();
-
-  // Check for oauth/callback errors in the URL
+  // Surface any auth error passed back in the URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const err = params.get('error');
       if (err) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setErrorParam(
           err === 'auth-failed'
-            ? 'Google authentication failed. Please try again.'
+            ? 'Authentication failed. Please try again.'
             : decodeURIComponent(err)
         );
         // Clear the error parameter from URL to prevent showing on refresh
@@ -35,39 +34,49 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    // Load session storage and sync with Supabase Auth client-side only
-    if (typeof window !== 'undefined') {
-      const syncSession = async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && session.user) {
-            const adminSession: AdminSession = {
-              username: session.user.email || '',
-              accessToken: session.access_token,
-            };
-            setAdminUser(adminSession);
-            window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(adminSession));
-          } else {
-            // Check fallback for session storage
-            const rawValue = window.sessionStorage.getItem(ADMIN_SESSION_KEY);
-            if (rawValue) {
-              try {
-                const session = JSON.parse(rawValue) as AdminSession;
-                setAdminUser(session);
-              } catch {
-                window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
-              }
-            }
-          }
-        } catch {
-          // Ignore sync errors
-        } finally {
-          setIsInitialized(true);
-        }
-      };
-      syncSession();
-    }
-  }, [supabase.auth]);
+    // Restore a previously stored admin session, and verify the token is still
+    // good before rendering the console. Without this check an expired token
+    // renders a dashboard whose every request 401s.
+    if (typeof window === 'undefined') return;
+
+    const restore = async () => {
+      const rawValue = window.sessionStorage.getItem(ADMIN_SESSION_KEY);
+      if (!rawValue) {
+        setIsInitialized(true);
+        return;
+      }
+
+      let stored: AdminSession | null = null;
+      try {
+        stored = JSON.parse(rawValue) as AdminSession;
+      } catch {
+        window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        setIsInitialized(true);
+        return;
+      }
+
+      try {
+        const response = await authFetch('/api/auth/me');
+        if (!response.ok) throw new Error('Session expired');
+
+        // The backend hands back a refreshed token; keep the newer one.
+        const data = await response.json();
+        const session: AdminSession = {
+          username: data.username || stored.username,
+          accessToken: data.access_token || stored.accessToken,
+        };
+        window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+        setAdminUser(session);
+      } catch {
+        window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        setErrorParam('Your session has expired. Please sign in again.');
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    void restore();
+  }, []);
 
   const handleLogin = (session: AdminSession) => {
     setAdminUser(session);
@@ -76,12 +85,11 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setAdminUser(null);
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
     }
-    await supabase.auth.signOut();
   };
 
   const handleBackToStore = () => {

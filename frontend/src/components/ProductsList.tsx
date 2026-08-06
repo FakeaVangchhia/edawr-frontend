@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '../types';
-import { Box, Edit2, Image as ImageIcon, MapPin, Search, ShieldCheck, Users } from 'lucide-react';
+import { Box, Edit2, Search, ShieldCheck } from 'lucide-react';
 import { assetUrl, authFetch } from '../lib/api';
 
 interface ProductsListProps {

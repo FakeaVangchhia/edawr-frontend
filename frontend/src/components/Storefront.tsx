@@ -1,15 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import QRCode from 'react-qr-code';
 import {
-  ArrowRight,
   ChevronDown,
   ListFilter,
-  MessageCircle,
   Minus,
   Package,
-  Phone,
   Plus,
   Search,
   ShoppingCart,
@@ -18,32 +14,6 @@ import {
 import { useSocket } from '../hooks/useSocket';
 import { apiUrl, assetUrl } from '../lib/api';
 import { Product } from '../types';
-
-const FALLBACK_WHATSAPP_URL = 'https://wa.me/918787698473';
-
-const whatsappUrl =
-  (process.env.NEXT_PUBLIC_WHATSAPP_URL || process.env.VITE_WHATSAPP_URL || '').trim() || FALLBACK_WHATSAPP_URL;
-
-const buildWhatsAppUrl = (message: string) => {
-  let cleanUrl = whatsappUrl;
-
-  // If it's a raw phone number (digits, spaces, dashes, or leading plus)
-  if (/^\+?[\d\s-]+$/.test(cleanUrl)) {
-    const digits = cleanUrl.replace(/[^\d+]/g, '');
-    cleanUrl = `https://wa.me/${digits}`;
-  } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-    cleanUrl = `https://${cleanUrl}`;
-  }
-
-  try {
-    const url = new URL(cleanUrl);
-    url.searchParams.set('text', message);
-    return url.toString();
-  } catch {
-    const [baseUrl] = cleanUrl.split('?');
-    return `${baseUrl}?text=${encodeURIComponent(message)}`;
-  }
-};
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-IN', {
@@ -64,9 +34,6 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [phone, setPhone] = useState('');
-  const [whatsAppStatus, setWhatsAppStatus] = useState('');
-  const [isStartingWhatsApp, setIsStartingWhatsApp] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -176,29 +143,15 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
     );
   }, [selectedItems]);
 
-  const orderMessage = useMemo(() => {
+  const orderSummary = useMemo(() => {
     if (!selectedItems.length) {
-      return '/dawr';
+      return '';
     }
 
     return selectedItems
       .map(item => `${item.quantity} ${item.name}`)
       .join(', ');
   }, [selectedItems]);
-
-  const dawrUrl = useMemo(() => buildWhatsAppUrl('/dawr'), []);
-
-  const checkoutUrl = useMemo(() => {
-    return buildWhatsAppUrl(orderMessage);
-  }, [orderMessage]);
-
-  const qrValue = useMemo(() => {
-    return selectedItems.length > 0 ? checkoutUrl : dawrUrl;
-  }, [selectedItems.length, checkoutUrl, dawrUrl]);
-
-  const qrLabel = useMemo(() => {
-    return selectedItems.length > 0 ? 'Scan to send order' : 'Scan to open Dawr';
-  }, [selectedItems.length]);
 
   const updateQuantity = (productId: number, nextQuantity: number) => {
     setQuantities(current => {
@@ -210,32 +163,6 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
 
       return { ...current, [productId]: nextQuantity };
     });
-  };
-
-  const handleStartTemplate = async () => {
-    if (!phone.trim()) {
-      setWhatsAppStatus('Enter a WhatsApp number to send the starter message.');
-      return;
-    }
-
-    setIsStartingWhatsApp(true);
-    setWhatsAppStatus('');
-    try {
-      const response = await fetch(apiUrl('/api/whatsapp/start'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || 'Unable to start WhatsApp right now.');
-      }
-      setWhatsAppStatus(`Starter template sent to ${data.phone}.`);
-    } catch (startError) {
-      setWhatsAppStatus(startError instanceof Error ? startError.message : 'Unable to start WhatsApp right now.');
-    } finally {
-      setIsStartingWhatsApp(false);
-    }
   };
 
   return (
@@ -440,18 +367,6 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-5">
-                <div className="text-center w-full max-w-[148px]">
-                  <QRCode
-                    value={qrValue}
-                    size={148}
-                    style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                    viewBox="0 0 148 148"
-                  />
-                  <div className="mt-3 text-sm font-medium text-slate-500">{qrLabel}</div>
-                </div>
-              </div>
-
               <div className="mt-5 space-y-3">
                 {selectedItems.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
@@ -482,57 +397,8 @@ export default function Storefront({ onOpenAdmin }: StorefrontProps) {
               </div>
 
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-                {selectedItems.length ? orderMessage : 'Scan the QR code to send /dawr on WhatsApp.'}
+                {orderSummary || 'Add items to build an order.'}
               </div>
-
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
-              >
-                Order on WhatsApp
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            </section>
-
-            <section className="panel rounded-[2rem] p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                  <Phone className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-slate-950">Send WhatsApp starter</div>
-                  <div className="text-sm text-slate-500">Start chat from a number.</div>
-                </div>
-              </div>
-
-              <label className="mt-5 block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">WhatsApp number</span>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={event => setPhone(event.target.value)}
-                  placeholder="Enter your mobile number"
-                  className="field-control text-sm"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={handleStartTemplate}
-                disabled={isStartingWhatsApp}
-                className="primary-action mt-4 inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <MessageCircle className="h-4 w-4" />
-                {isStartingWhatsApp ? 'Sending...' : 'Send Starter Message'}
-              </button>
-
-              {whatsAppStatus && (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  {whatsAppStatus}
-                </div>
-              )}
             </section>
           </aside>
         </section>

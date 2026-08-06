@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
-import { Message, Order, Product, User } from '../types';
+import { Order, Product, User } from '../types';
 import {
   CheckCircle,
   Clock,
-  MessageSquare,
-  Send,
   Truck,
   Users,
   Warehouse,
@@ -15,7 +13,7 @@ import {
 import { authFetch } from '../lib/api';
 import ProductsDashboard from './ProductsDashboard';
 
-type Tab = 'orders' | 'products' | 'whatsapp';
+type Tab = 'orders' | 'products';
 
 type ManagerDashboardProps = {
   headerActions?: React.ReactNode;
@@ -33,22 +31,27 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('orders');
-  const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // A failed request returns {"detail": "..."} -- assigning that object into
+  // state used with .map()/.filter() throws during render and blanks the whole
+  // console, including the logout button. Only ever store arrays.
+  const loadList = <T,>(path: string, apply: (rows: T[]) => void) =>
+    authFetch(path)
+      .then(async response => {
+        if (!response.ok) throw new Error(`${path} failed (${response.status})`);
+        return response.json();
+      })
+      .then(data => apply(Array.isArray(data) ? data : []))
+      .catch(error => {
+        console.error(error);
+        apply([]);
+      });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, selectedPhone]);
-
-  useEffect(() => {
-    authFetch('/api/orders').then(r => r.json()).then(setOrders).catch(console.error);
-    authFetch('/api/products').then(r => r.json()).then(setProducts).catch(console.error);
-    authFetch('/api/users').then(r => r.json()).then(setUsers).catch(console.error);
-    authFetch('/api/messages').then(r => r.json()).then(setMessages).catch(console.error);
+    void loadList<Order>('/api/orders', setOrders);
+    void loadList<Product>('/api/products', setProducts);
+    void loadList<User>('/api/users', setUsers);
 
     if (socket) {
       socket.on('order:created', (order: Order) => {
@@ -58,13 +61,10 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
       });
       socket.on('inventory:updated', () => {
-        authFetch('/api/products').then(r => r.json()).then(setProducts).catch(console.error);
+        void loadList<Product>('/api/products', setProducts);
       });
       socket.on('product:updated', () => {
-        authFetch('/api/products').then(r => r.json()).then(setProducts).catch(console.error);
-      });
-      socket.on('message:new', (msg: Message) => {
-        setMessages(prev => [...prev, msg]);
+        void loadList<Product>('/api/products', setProducts);
       });
     }
 
@@ -73,18 +73,8 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
       socket?.off('order:updated');
       socket?.off('inventory:updated');
       socket?.off('product:updated');
-      socket?.off('message:new');
     };
   }, [socket]);
-
-  const conversations = useMemo(() => {
-    const groups: Record<string, Message[]> = {};
-    messages.forEach(m => {
-      if (!groups[m.phone]) groups[m.phone] = [];
-      groups[m.phone].push(m);
-    });
-    return groups;
-  }, [messages]);
 
   const deliveryBoys = users.filter(u => u.role === 'delivery');
 
@@ -134,12 +124,6 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'products' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               Products
-            </button>
-            <button
-              onClick={() => setActiveTab('whatsapp')}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'whatsapp' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-            >
-              WhatsApp Chats
             </button>
           </nav>
           {headerActions ? <div className="ml-auto">{headerActions}</div> : null}
@@ -234,107 +218,13 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
               ))}
               {orders.length === 0 && (
                 <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white py-12 text-center text-slate-500">
-                  No orders yet. Waiting for WhatsApp messages...
+                  No orders yet.
                 </div>
               )}
             </div>
           </div>
-        ) : activeTab === 'products' ? (
-          <ProductsDashboard />
         ) : (
-          <div className="flex h-[600px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex w-1/3 flex-col border-r border-slate-200">
-              <div className="border-b border-slate-200 bg-slate-50 p-4 font-bold text-slate-700">
-                Conversations
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {Object.keys(conversations).map(phone => {
-                  const msgs = conversations[phone];
-                  const lastMsg = msgs[msgs.length - 1];
-                  return (
-                    <div
-                      key={phone}
-                      onClick={() => setSelectedPhone(phone)}
-                      className={`cursor-pointer border-b border-slate-100 p-4 transition-colors hover:bg-slate-50 ${selectedPhone === phone ? 'bg-slate-100' : ''}`}
-                    >
-                      <div className="font-bold text-slate-800">{phone}</div>
-                      <div className="truncate text-sm text-slate-500">{lastMsg.content}</div>
-                    </div>
-                  );
-                })}
-                {Object.keys(conversations).length === 0 && (
-                  <div className="p-8 text-center text-sm text-slate-500">No conversations yet.</div>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-1 flex-col bg-slate-50/50">
-              {selectedPhone ? (
-                <>
-                  <div className="flex items-center gap-2 border-b border-slate-200 bg-white p-4 font-bold text-slate-800">
-                    <MessageSquare className="h-5 w-5 text-emerald-500" />
-                    {selectedPhone}
-                  </div>
-                  <div className="flex-1 space-y-4 overflow-y-auto p-4 flex flex-col">
-                    {conversations[selectedPhone]?.map(msg => (
-                      <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.direction === 'outbound' ? 'rounded-tr-sm bg-emerald-500 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-800 shadow-sm'}`}>
-                          <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-                          <div className={`mt-1 text-right text-[10px] ${msg.direction === 'outbound' ? 'text-emerald-100' : 'text-slate-400'}`}>
-                            {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  <div className="border-t border-slate-200 bg-white p-4">
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!replyText.trim()) return;
-                        
-                        const text = replyText.trim();
-                        setReplyText('');
-                        
-                        // Optimistic UI update
-                        const newMsg: Message = {
-                          id: Date.now(),
-                          phone: selectedPhone,
-                          direction: 'outbound',
-                          content: text,
-                          created_at: new Date().toISOString()
-                        };
-                        setMessages(prev => [...prev, newMsg]);
-
-                        authFetch('/api/messages/send', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ phone: selectedPhone, content: text })
-                        }).catch(console.error);
-                      }}
-                      className="flex gap-2"
-                    >
-                      <input
-                        type="text"
-                        value={replyText}
-                        onChange={e => setReplyText(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 rounded-full border border-slate-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                      <button type="submit" className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white transition-colors hover:bg-emerald-600">
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-400">
-                  <MessageSquare className="h-12 w-12 opacity-20" />
-                  <p>Select a conversation to start messaging</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ProductsDashboard />
         )}
       </main>
     </div>
