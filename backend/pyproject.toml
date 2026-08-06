@@ -1,0 +1,28 @@
+[project]
+name = "edawr-backend"
+version = "1.0.0"
+description = "FastAPI backend for the eDawr storefront, admin console and rider app."
+requires-python = ">=3.11"
+
+# Direct dependencies only -- the things this code imports. Everything these
+# pull in transitively (starlette, anyio, h11, ...) is resolved and pinned in
+# uv.lock, not listed here.
+#
+# Lower bounds, not exact pins: pyproject declares what is COMPATIBLE, uv.lock
+# records what is INSTALLED. See docs/uv.md.
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.52.1",
+    "sqlalchemy>=2.0.51",
+    "pydantic-settings>=2.14.2",
+    "python-multipart>=0.0.32",
+    "PyJWT>=2.13.0",
+    "bcrypt>=5.0.0",
+]
+
+[tool.uv]
+# This is an application, not a library -- nothing imports `edawr-backend` from
+# elsewhere. `package = false` tells uv to install the dependencies but skip
+# building/installing this project itself, which is what you want for a service
+# you run in place with `uv run uvicorn app.main:app`.
+package = false
