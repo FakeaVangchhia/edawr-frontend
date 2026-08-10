@@ -1,408 +1,304 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { PackageSearch, ShoppingCart } from 'lucide-react';
+import { useCart } from '@/lib/cart';
+import { formatMoney } from '@/lib/format';
 import {
-  ChevronDown,
-  ListFilter,
-  Minus,
-  Package,
-  Plus,
-  Search,
-  ShoppingCart,
-  Store,
-} from 'lucide-react';
-import { useSocket } from '../hooks/useSocket';
-import { apiUrl, assetUrl } from '../lib/api';
-import { Product } from '../types';
+  fetchCategories,
+  fetchProducts,
+  fetchStoreConfig,
+  quoteBasket,
+} from '@/lib/store-api';
+import type { BasketQuote, StoreCategory, StoreConfig, StoreProduct } from '@/types';
+import CartDrawer from './store/CartDrawer';
+import CategoryRail from './store/CategoryRail';
+import CheckoutSheet from './store/CheckoutSheet';
+import ProductCard from './store/ProductCard';
+import StoreHeader from './store/StoreHeader';
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  }).format(value);
+/** Long enough that typing "tomato" is one request, short enough to feel live. */
+const SEARCH_DEBOUNCE_MS = 250;
 
-type StorefrontProps = {
-  onOpenAdmin: () => void;
-};
+export default function Storefront() {
+  const router = useRouter();
+  const cart = useCart();
 
-export default function Storefront({ onOpenAdmin }: StorefrontProps) {
-  const { socket, isConnected } = useSocket();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [config, setConfig] = useState<StoreConfig | null>(null);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
+
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [category, setCategory] = useState('All');
+  /** Bumped by the retry button to re-run the catalogue effect. */
+  const [reloadToken, setReloadToken] = useState(0);
+
+  /**
+   * The catalogue, tagged with the query that produced it.
+   *
+   * Storing the query alongside the rows is what lets "is this list stale?" be
+   * *derived* rather than tracked in a separate loading flag — and a flag would
+   * have to be set synchronously inside the effect, which causes a cascading
+   * render. Same reasoning for the quote below.
+   */
+  const [catalogue, setCatalogue] = useState<{
+    query: string;
+    products: StoreProduct[] | null;
+    error: string;
+  } | null>(null);
+
+  const [quoteResult, setQuoteResult] = useState<{
+    signature: string;
+    quote: BasketQuote | null;
+  } | null>(null);
+
+  const [isCartOpen, setCartOpen] = useState(false);
+  const [isCheckoutOpen, setCheckoutOpen] = useState(false);
+
+  // --- store metadata, fetched once ------------------------------------
+  useEffect(() => {
+    const controller = new AbortController();
+
+    // Neither of these should be able to break the page: a store with no
+    // category rail still sells things, and the header falls back to sensible
+    // defaults if the config call fails.
+    fetchStoreConfig(controller.signal)
+      .then(setConfig)
+      .catch(() => undefined);
+    fetchCategories(controller.signal)
+      .then(setCategories)
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, []);
+
+  // --- debounce the search box -----------------------------------------
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  // --- catalogue --------------------------------------------------------
+  const query = `${category}::${debouncedSearch}::${reloadToken}`;
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
-    const normalizeProduct = (product: Product & { category_name?: string }) => ({
-      ...product,
-      category: product.category || product.category_name || '',
-    });
+    fetchProducts({ q: debouncedSearch, category }, controller.signal)
+      .then((rows) => setCatalogue({ query, products: rows, error: '' }))
+      .catch((error: unknown) => {
+        // An aborted request is not a failure — it means the customer typed
+        // another character and this response is already stale.
+        if (controller.signal.aborted) return;
+        setCatalogue({
+          query,
+          products: null,
+          error:
+            error instanceof Error ? error.message : 'Could not load the store right now.',
+        });
+      });
 
-    const loadProducts = async () => {
-      if (isMounted) {
-        setIsLoading(true);
-        setError('');
-      }
+    return () => controller.abort();
+  }, [query, debouncedSearch, category]);
 
-      try {
-        const response = await fetch(apiUrl('/api/store/products'));
-        if (!response.ok) {
-          throw new Error('Unable to load products right now.');
-        }
+  const products = catalogue?.products ?? [];
+  const loadError = catalogue?.query === query ? catalogue.error : '';
+  // Never loaded anything yet, so there is nothing to show but skeletons.
+  const isFirstLoad = catalogue === null;
+  // Loaded, but for a different query — the list on screen is one keystroke old.
+  const isStale = !isFirstLoad && catalogue.query !== query;
 
-        const data: Array<Product & { category_name?: string }> = await response.json();
-        if (!isMounted) return;
-
-        setProducts(data.map(normalizeProduct));
-      } catch (loadError) {
-        if (!isMounted) return;
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load products right now.');
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadProducts();
-
-    const refreshCatalog = () => {
-      void loadProducts();
-    };
-
-    socket?.on('product:updated', refreshCatalog);
-
-    return () => {
-      isMounted = false;
-      socket?.off('product:updated', refreshCatalog);
-    };
-  }, [socket]);
-
-  const categories = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(products.map(product => product.category).filter(Boolean))
-    ).sort((left, right) => left.localeCompare(right));
-
-    return ['All', ...uniqueCategories];
-  }, [products]);
-
-  const filteredProducts = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    return products.filter(product => {
-      const matchesCategory =
-        selectedCategory === 'All' || product.category === selectedCategory;
-
-      if (!matchesCategory) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      return [
-        product.name,
-        product.category,
-        product.brand,
-        product.description,
-        product.sku,
-      ].some(value => value?.toLowerCase().includes(query));
-    });
-  }, [products, searchQuery, selectedCategory]);
-
-  const availableProductsCount = useMemo(
-    () => products.filter(product => product.stock > 0).length,
-    [products]
+  // --- the bill, always from the server ---------------------------------
+  const lineSignature = useMemo(
+    () => cart.lines.map((line) => `${line.product.id}:${line.quantity}`).join(','),
+    [cart.lines],
   );
 
-  const selectedItems = useMemo(
-    () =>
-      products
-        .filter(product => (quantities[product.id] ?? 0) > 0)
-        .map(product => ({
-          ...product,
-          quantity: quantities[product.id],
-        })),
-    [products, quantities]
-  );
+  useEffect(() => {
+    if (!cart.isReady || lineSignature === '') return;
 
-  const cartSummary = useMemo(() => {
-    return selectedItems.reduce(
-      (summary, item) => {
-        summary.quantity += item.quantity;
-        summary.total += item.quantity * item.price;
-        return summary;
-      },
-      { quantity: 0, total: 0 }
-    );
-  }, [selectedItems]);
+    const controller = new AbortController();
 
-  const orderSummary = useMemo(() => {
-    if (!selectedItems.length) {
-      return '';
-    }
+    // Aborting on change is what drops a response that arrives after the
+    // basket was edited again — without it the drawer can show the total for a
+    // cart the customer has already changed.
+    quoteBasket(cart.lines, controller.signal)
+      .then((result) => setQuoteResult({ signature: lineSignature, quote: result }))
+      .catch(() => {
+        // Leave the previous quote on screen. Checkout re-prices server-side
+        // anyway, so a failed quote can never let a wrong total be paid.
+      });
 
-    return selectedItems
-      .map(item => `${item.quantity} ${item.name}`)
-      .join(', ');
-  }, [selectedItems]);
+    return () => controller.abort();
+    // `cart.lines` is intentionally not a dependency: `lineSignature` is its
+    // value-identity, and depending on the array would re-quote on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineSignature, cart.isReady]);
 
-  const updateQuantity = (productId: number, nextQuantity: number) => {
-    setQuantities(current => {
-      if (nextQuantity <= 0) {
-        const next = { ...current };
-        delete next[productId];
-        return next;
-      }
+  const quote = cart.count > 0 ? (quoteResult?.quote ?? null) : null;
+  const isQuoting = cart.count > 0 && quoteResult?.signature !== lineSignature;
 
-      return { ...current, [productId]: nextQuantity };
-    });
-  };
+  const openCart = () => setCartOpen(true);
+
+  const showEmptyState = !isFirstLoad && !loadError && products.length === 0;
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-950">
-      <header className="border-b border-slate-200 bg-white/90">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/15">
-              <Store className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-lg font-extrabold tracking-tight">eDawr</div>
-              <div className="text-sm text-slate-500">Products</div>
-            </div>
-          </div>
+    <div className="flex min-h-screen flex-col bg-[var(--color-surface-sunken)]">
+      <StoreHeader
+        config={config}
+        search={search}
+        onSearchChange={setSearch}
+        cartCount={cart.count}
+        cartSubtotal={quote?.grand_total ?? cart.subtotal}
+        onOpenCart={openCart}
+        onOpenAdmin={() => router.push('/admin')}
+      />
 
-          <div className="flex items-center gap-3">
-            <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 sm:block">
-              {isConnected ? 'Live catalog connected' : 'Catalog offline'}
-            </div>
+      <CategoryRail categories={categories} selected={category} onSelect={setCategory} />
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 pb-28 sm:px-6">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h1 className="text-lg font-extrabold">
+            {debouncedSearch
+              ? `Results for “${debouncedSearch}”`
+              : category === 'All'
+                ? 'Everything in store'
+                : category}
+          </h1>
+          {/* The previous results stay on screen while the next query is in
+              flight — replacing them with skeletons on every keystroke is more
+              flicker than information. This says the list is one step behind. */}
+          {isStale ? (
+            <span className="text-xs text-[var(--color-ink-faint)]">Updating…</span>
+          ) : (
+            !isFirstLoad &&
+            products.length > 0 && (
+              <span className="text-xs text-[var(--color-ink-faint)]">
+                {products.length} item{products.length === 1 ? '' : 's'}
+              </span>
+            )
+          )}
+        </div>
+
+        {loadError && (
+          <div className="card p-6 text-center">
+            <p className="font-semibold text-[#b91c1c]">{loadError}</p>
             <button
-              onClick={onOpenAdmin}
-              className="secondary-action rounded-full px-4 py-2 text-sm font-semibold transition"
+              type="button"
+              onClick={() => setReloadToken((token) => token + 1)}
+              className="btn-ghost mt-3"
             >
-              Open Admin
+              Try again
             </button>
           </div>
-        </div>
-      </header>
+        )}
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-6">
-            <section className="panel rounded-[2rem] p-6 sm:p-8">
-              <div className="space-y-6">
-                <div className="max-w-3xl">
-                  <div className="section-label">Online Store</div>
-                  <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950">
-                    Clean product list.
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                    Search, filter, and order from a tidy catalog.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <div className="text-sm text-slate-500">Products</div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">{products.length}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <div className="text-sm text-slate-500">In stock</div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">{availableProductsCount}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <div className="text-sm text-slate-500">Categories</div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">{categories.length - 1}</div>
-                  </div>
-                </div>
+        {isFirstLoad && (
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <div key={index} className="card overflow-hidden p-2.5">
+                <div className="skeleton mb-2 aspect-square rounded-xl" />
+                <div className="skeleton mb-1.5 h-3 w-4/5 rounded" />
+                <div className="skeleton h-3 w-2/5 rounded" />
               </div>
-            </section>
-
-            <section className="panel rounded-[2rem]">
-              <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="section-label">Catalog</div>
-                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Items list</h2>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <label className="relative block min-w-0 sm:w-72">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={event => setSearchQuery(event.target.value)}
-                      placeholder="Search items..."
-                      className="field-control h-[42px] py-0 pl-10 pr-3 text-sm"
-                    />
-                  </label>
-
-                  <label className="relative block min-w-0 sm:w-52">
-                    <ListFilter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <select
-                      value={selectedCategory}
-                      onChange={event => setSelectedCategory(event.target.value)}
-                      className="field-control appearance-none h-[42px] py-0 pl-10 pr-10 text-sm"
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  </label>
-                </div>
-              </div>
-
-              {isLoading ? (
-                <div className="px-6 py-12 text-center text-slate-500">Loading products...</div>
-              ) : error ? (
-                <div className="px-6 py-12 text-center text-rose-700">{error}</div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="px-6 py-12 text-center text-slate-500">No products available yet.</div>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {filteredProducts.map(product => {
-                    const quantity = quantities[product.id] ?? 0;
-                    const isAvailable = product.stock > 0;
-
-                    return (
-                      <article
-                        key={product.id}
-                        className="grid gap-4 px-6 py-5 md:grid-cols-[96px_minmax(0,1fr)_120px_136px] md:items-center"
-                      >
-                        <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 flex-shrink-0">
-                          {product.image_url ? (
-                            <img src={assetUrl(product.image_url)} alt={product.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-slate-400">
-                              <Package className="h-8 w-8" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-col gap-2">
-                            <div>
-                              <h3 className="text-lg font-bold text-slate-950">{product.name}</h3>
-                              <div className="mt-1 flex flex-wrap gap-2 text-sm text-slate-500">
-                                <span>{product.category}</span>
-                                {product.brand && <span>{product.brand}</span>}
-                                <span>{product.unit}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {product.description && (
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{product.description}</p>
-                          )}
-
-                          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                            {product.sku && <span>SKU: {product.sku}</span>}
-                            {product.location && <span>Location: {product.location}</span>}
-                            {product.supplier_name && <span>Supplier: {product.supplier_name}</span>}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-start gap-3 md:items-end">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                              isAvailable ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                            }`}
-                          >
-                            {isAvailable ? `${product.stock} in stock` : 'Out of stock'}
-                          </span>
-                          <div className="text-left md:text-right">
-                            <div className="text-2xl font-black text-slate-950">{formatCurrency(product.price)}</div>
-                            <div className="text-sm text-slate-500">per {product.unit}</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-start md:justify-end">
-                          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 shadow-inner">
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(product.id, quantity - 1)}
-                              disabled={quantity === 0}
-                              className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
-                            <span className="min-w-8 text-center text-sm font-bold text-slate-950">{quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(product.id, quantity + 1)}
-                              disabled={!isAvailable || quantity >= product.stock}
-                              className="rounded-full p-2 text-slate-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+            ))}
           </div>
+        )}
 
-          <aside className="space-y-6">
-            <section className="panel rounded-[2rem] p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 text-white">
-                  <ShoppingCart className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-slate-950">Selected items</div>
-                  <div className="text-sm text-slate-500">{cartSummary.quantity} item(s) selected</div>
-                </div>
-              </div>
+        {showEmptyState && (
+          <div className="card flex flex-col items-center gap-2 px-6 py-14 text-center">
+            <PackageSearch className="h-9 w-9 text-[var(--color-ink-faint)]" aria-hidden />
+            <p className="font-semibold">Nothing here yet</p>
+            <p className="max-w-sm text-sm text-[var(--color-ink-faint)]">
+              {debouncedSearch
+                ? `We could not find anything matching “${debouncedSearch}”.`
+                : 'This aisle is empty right now. Try another category.'}
+            </p>
+            {(debouncedSearch || category !== 'All') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setCategory('All');
+                }}
+                className="btn-ghost mt-2"
+              >
+                Show everything
+              </button>
+            )}
+          </div>
+        )}
 
-              <div className="mt-5 space-y-3">
-                {selectedItems.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                    Add items to prepare an order.
-                  </div>
-                ) : (
-                  selectedItems.map(item => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="font-semibold text-slate-900">{item.name}</div>
-                          <div className="text-sm text-slate-500">
-                            {item.quantity} x {formatCurrency(item.price)}
-                          </div>
-                        </div>
-                        <div className="font-semibold text-slate-900">
-                          {formatCurrency(item.quantity * item.price)}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-slate-900 px-4 py-4 text-white">
-                <div className="text-sm text-slate-300">Total</div>
-                <div className="mt-1 text-3xl font-black">{formatCurrency(cartSummary.total)}</div>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-                {orderSummary || 'Add items to build an order.'}
-              </div>
-            </section>
-          </aside>
-        </section>
+        {!isFirstLoad && products.length > 0 && (
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </main>
+
+      {/* The persistent basket bar. On a phone this is the only cart affordance
+          that is always in reach, so it stays fixed rather than scrolling with
+          the grid. */}
+      {cart.count > 0 && !isCartOpen && !isCheckoutOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-40 p-3">
+          <button
+            type="button"
+            onClick={openCart}
+            className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[var(--color-brand-700)] px-4 py-3 text-white shadow-[0_16px_40px_-16px_rgba(46,16,101,0.8)] transition-colors hover:bg-[var(--color-brand-900)]"
+          >
+            <span className="flex items-center gap-2 text-sm font-bold">
+              <ShoppingCart className="h-4 w-4" aria-hidden />
+              {cart.count} item{cart.count === 1 ? '' : 's'}
+              <span className="text-white/60">·</span>
+              <span className="tabular-nums">
+                {formatMoney(quote?.grand_total ?? cart.subtotal)}
+              </span>
+            </span>
+            <span className="text-sm font-extrabold">View cart →</span>
+          </button>
+        </div>
+      )}
+
+      {/* Mounted only while open, so each one starts from a clean slate —
+          a half-typed address or a stale error should not survive a close. */}
+      {isCartOpen && (
+        <CartDrawer
+          onClose={() => setCartOpen(false)}
+          onCheckout={() => {
+            setCartOpen(false);
+            setCheckoutOpen(true);
+          }}
+          quote={quote}
+          isQuoting={isQuoting}
+          config={config}
+        />
+      )}
+
+      {isCheckoutOpen && (
+        <CheckoutSheet
+          onClose={() => {
+            setCheckoutOpen(false);
+            setCartOpen(true);
+          }}
+          quote={quote}
+          onUnavailable={() => {
+            // Send the customer back to the cart — nothing can be fixed from
+            // the address form. The quote re-runs automatically once they
+            // change a quantity, and the drawer marks the offending rows from
+            // the `unavailable` list the 409 carried.
+            setCheckoutOpen(false);
+            setCartOpen(true);
+            setReloadToken((token) => token + 1);
+          }}
+          onPlaced={(order) => {
+            setCheckoutOpen(false);
+            router.push(`/order/${order.tracking_token}`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,118 +1,288 @@
 @import "tailwindcss";
 
+/**
+ * Design tokens.
+ *
+ * The old theme was built for an inventory console: slate panels, glass blur,
+ * lots of chrome around dense tables. A 10-minute grocery store wants the
+ * opposite — a flat white surface, one saturated brand colour that means
+ * "act", and every pixel of contrast spent on the product and its price.
+ *
+ * Committed to light only. Quick-commerce storefronts are shopfronts: they are
+ * bright, and a dark variant would double the surface area of every review for
+ * a mode nobody opens a grocery app in.
+ */
+@theme {
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-900: #2e1065;
+
+  --color-accent-500: #ec4899;
+  --color-accent-600: #db2777;
+
+  --color-ink: #16123a;
+  --color-ink-soft: #5b5675;
+  --color-ink-faint: #8b87a3;
+
+  --color-line: #e9e6f2;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f7f5fb;
+
+  --color-fresh-500: #12a150;
+  --color-fresh-50: #e8f8ef;
+}
+
 @layer base {
   :root {
     color-scheme: light;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     margin: 0;
     min-width: 320px;
-    background:
-      radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 26%),
-      radial-gradient(circle at top right, rgba(15, 23, 42, 0.08), transparent 24%),
-      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    color: #0f172a;
+    background: var(--color-surface-sunken);
+    color: var(--color-ink);
     font-family: var(--font-ibm-plex), ui-sans-serif, system-ui, sans-serif;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-manrope), var(--font-ibm-plex), ui-sans-serif, sans-serif;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 
-  button,
-  input,
-  select,
-  textarea {
+  button, input, select, textarea {
     font: inherit;
   }
 
   ::selection {
-    background: rgba(15, 118, 110, 0.16);
-    color: #0f172a;
+    background: var(--color-brand-200);
+    color: var(--color-ink);
+  }
+
+  /* Keyboard focus must always be visible. The default ring is removed by
+     several component styles below, so it is restored here rather than left to
+     each one to remember. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
   }
 }
 
 @layer components {
-  .app-shell {
-    min-height: 100vh;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(248, 250, 252, 0.94)),
-      radial-gradient(circle at top, rgba(226, 232, 240, 0.45), transparent 55%);
+  /* The purple band behind the header and the checkout hero. */
+  .brand-gradient {
+    background: linear-gradient(135deg, var(--color-brand-900) 0%, var(--color-brand-700) 55%, var(--color-brand-600) 100%);
   }
 
-  .panel {
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 24px 64px -40px rgba(15, 23, 42, 0.35);
-    backdrop-filter: blur(16px);
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 1rem;
   }
 
-  .panel-muted {
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(248, 250, 252, 0.88);
-    box-shadow: 0 18px 40px -32px rgba(15, 23, 42, 0.25);
+  .field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
   }
 
-  .section-label {
+  .field::placeholder {
+    color: var(--color-ink-faint);
+  }
+
+  .field:focus {
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px var(--color-brand-100);
+  }
+
+  .field-invalid {
+    border-color: #e11d48;
+  }
+
+  .field-invalid:focus {
+    box-shadow: 0 0 0 3px #ffe4e6;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    background: var(--color-brand-700);
+    color: #fff;
+    font-weight: 700;
+    padding: 0.8rem 1.15rem;
+    transition: background-color 140ms ease, transform 140ms ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-brand-900);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+
+  .btn-primary:disabled {
+    background: var(--color-ink-faint);
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    color: var(--color-ink-soft);
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+    transition: border-color 140ms ease, color 140ms ease;
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--color-brand-200);
+    color: var(--color-brand-700);
+  }
+
+  /* The ADD button on a product tile, and the stepper it turns into. Outlined
+     rather than filled: on a grid of twenty tiles, twenty solid buttons compete
+     with the products they are meant to sell. */
+  .btn-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border-radius: 0.6rem;
+    border: 1px solid var(--color-brand-200);
+    background: var(--color-brand-50);
+    color: var(--color-brand-700);
+    font-weight: 800;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.5rem;
+    transition: background-color 140ms ease, border-color 140ms ease;
+  }
+
+  .btn-add:hover:not(:disabled) {
+    background: var(--color-brand-100);
+    border-color: var(--color-brand-500);
+  }
+
+  .btn-add:disabled {
+    border-color: var(--color-line);
+    background: var(--color-surface-sunken);
+    color: var(--color-ink-faint);
+    cursor: not-allowed;
+  }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border-radius: 0.6rem;
+    background: var(--color-brand-700);
+    color: #fff;
+    font-weight: 800;
+    overflow: hidden;
+  }
+
+  .stepper button {
+    padding: 0.45rem 0.65rem;
+    line-height: 1;
+    transition: background-color 120ms ease;
+  }
+
+  .stepper button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .stepper button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .badge-discount {
+    background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-600));
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.62rem;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.35rem;
+    border-radius: 0.3rem;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.22rem 0.6rem;
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: #64748b;
   }
 
-  .field-control {
-    width: 100%;
-    border-radius: 1rem;
-    border: 1px solid rgba(148, 163, 184, 0.36);
-    background: rgba(255, 255, 255, 0.92);
-    padding: 0.7rem 0.95rem;
-    font-size: 0.95rem;
-    color: #0f172a;
-    outline: none;
-    transition:
-      border-color 160ms ease,
-      box-shadow 160ms ease,
-      background-color 160ms ease;
+  /* Horizontal rails scroll rather than wrap; the scrollbar itself is noise. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .field-control:focus {
-    border-color: rgba(15, 118, 110, 0.55);
-    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
-  .primary-action {
-    border-radius: 1rem;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    color: white;
-    box-shadow: 0 18px 30px -20px rgba(15, 23, 42, 0.6);
+  /* A restrained shimmer for loading tiles. Respects reduced-motion below. */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-sunken) 25%,
+      #efecf7 37%,
+      var(--color-surface-sunken) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-sweep 1.4s ease infinite;
   }
 
-  .primary-action:hover {
-    background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
-  }
-
-  .secondary-action {
-    border-radius: 1rem;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    background: rgba(255, 255, 255, 0.9);
-    color: #334155;
-  }
-
-  .secondary-action:hover {
-    border-color: rgba(71, 85, 105, 0.4);
-    color: #0f172a;
-    background: rgba(255, 255, 255, 1);
+  @keyframes skeleton-sweep {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

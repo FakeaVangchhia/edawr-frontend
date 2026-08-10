@@ -1,22 +1,159 @@
+/**
+ * Shapes returned by the Django API.
+ *
+ * These are hand-written rather than generated, so the rule is: if you change a
+ * serializer in `backend/api/serializers.py`, change the matching type here in
+ * the same commit. The `StoreProduct` / `Product` split is the one that matters
+ * most — it mirrors two different serializers on purpose, and the storefront
+ * must never be handed the admin shape.
+ */
+
+/** The admin view of a product: includes margin and supplier data. */
 export interface Product {
   id: number;
   name: string;
-  sku: string;
-  barcode: string;
-  category: string;
-  brand: string;
-  unit: string;
+  sku: string | null;
+  barcode: string | null;
+  category: string | null;
+  brand: string | null;
+  unit: string | null;
   price: number;
   cost_price: number;
   mrp: number;
   stock: number;
   reorder_level: number;
   status: string;
-  location: string;
-  supplier_name: string;
-  supplier_phone: string;
-  description: string;
-  image_url: string;
+  location: string | null;
+  supplier_name: string | null;
+  supplier_phone: string | null;
+  description: string | null;
+  image_url: string | null;
+  discount_percent: number;
+  created_at: string;
+}
+
+/**
+ * The public view of a product. Deliberately narrower: no cost price, no
+ * supplier, no shelf location, and stock reduced to two booleans so the exact
+ * inventory level is not published to competitors.
+ */
+export interface StoreProduct {
+  id: number;
+  name: string;
+  category: string | null;
+  brand: string | null;
+  unit: string | null;
+  price: number;
+  mrp: number;
+  description: string | null;
+  image_url: string | null;
+  in_stock: boolean;
+  low_stock: boolean;
+  discount_percent: number;
+}
+
+export interface StoreCategory {
+  name: string;
+  image_url: string | null;
+  product_count: number;
+}
+
+/** The store's own rules, so no fee or promise is hardcoded in the UI. */
+export interface StoreConfig {
+  store_name: string;
+  store_city: string;
+  promise_minutes: number;
+  delivery_fee: number;
+  free_delivery_above: number;
+  handling_fee: number;
+  min_order_value: number;
+}
+
+export interface UnavailableItem {
+  product_id: number;
+  name: string;
+  reason: string;
+  available: number;
+}
+
+/** What a basket would cost. Always computed by the server. */
+export interface BasketQuote {
+  items_total: number;
+  delivery_fee: number;
+  handling_fee: number;
+  grand_total: number;
+  free_delivery_shortfall: number;
+  meets_minimum: boolean;
+  unavailable: UnavailableItem[];
+}
+
+export type OrderStatus =
+  | 'Placed'
+  | 'Packing'
+  | 'Ready'
+  | 'Dispatched'
+  | 'Delivered'
+  | 'Cancelled';
+
+export interface OrderItem {
+  id: number;
+  order_id: number;
+  product_id: number;
+  quantity: number;
+  name: string;
+  price: number;
+  mrp: number;
+  unit: string | null;
+  image_url: string | null;
+  line_total: number;
+}
+
+export interface RiderSummary {
+  id: number;
+  name: string;
+  phone: string;
+}
+
+/** What the customer sees on the tracking page. */
+export interface TrackedOrder {
+  id: number;
+  tracking_token: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  customer_landmark: string | null;
+  delivery_notes: string | null;
+  status: OrderStatus;
+  status_label: string;
+  cancellation_reason: string | null;
+  can_cancel: boolean;
+  items_total: number;
+  delivery_fee: number;
+  handling_fee: number;
+  grand_total: number;
+  payment_method: string;
+  promised_minutes: number;
+  promised_at: string;
+  minutes_remaining: number;
+  is_late: boolean;
+  created_at: string;
+  packed_at: string | null;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+  cancelled_at: string | null;
+  rider: RiderSummary | null;
+  items: OrderItem[];
+}
+
+/** The full internal view, for the admin console. */
+export interface Order extends Omit<TrackedOrder, 'rider' | 'can_cancel'> {
+  customer_latitude: number;
+  customer_longitude: number;
+  delivery_boy_id: number | null;
+  offered_to_delivery_boy_id: number | null;
+  offered_distance_km: number | null;
+  fulfilment_minutes: number | null;
+  rider: RiderSummary | null;
 }
 
 export type Role = 'manager' | 'delivery';
@@ -26,9 +163,23 @@ export interface User {
   name: string;
   role: Role;
   phone: string;
+  is_active: boolean;
+  is_available: boolean;
   base_latitude?: number;
   base_longitude?: number;
   service_radius_km?: number;
+  created_at?: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  description: string | null;
+  parent_id: number | null;
+  image_url: string | null;
+  sort_order: number;
+  status: string;
+  created_at?: string;
 }
 
 export interface AdminSession {
@@ -36,42 +187,8 @@ export interface AdminSession {
   accessToken: string;
 }
 
-export interface Category {
-  id: number;
-  name: string;
-  description: string;
-  parent_id: number | null;
-  status: string;
-}
-
-export interface OrderItem {
-  id: number;
-  order_id: number;
-  product_id: number;
+/** One line in the basket: the product, plus how many of it. */
+export interface CartLine {
+  product: StoreProduct;
   quantity: number;
-  name: string;
-  price: number;
-}
-
-export interface Order {
-  id: number;
-  customer_phone: string;
-  customer_name?: string;
-  customer_address?: string;
-  customer_latitude?: number;
-  customer_longitude?: number;
-  status: 'Pending' | 'Assigned' | 'Delivered';
-  delivery_boy_id: number | null;
-  offered_to_delivery_boy_id?: number | null;
-  offered_distance_km?: number | null;
-  created_at: string;
-  items: OrderItem[];
-}
-
-export interface Message {
-  id: number;
-  phone: string;
-  direction: 'inbound' | 'outbound';
-  content: string;
-  created_at: string;
 }

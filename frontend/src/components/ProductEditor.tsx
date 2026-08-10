@@ -1,5 +1,11 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- Product images come from the
+   Django backend at a host only known at runtime (NEXT_PUBLIC_API_URL), so
+   next/image's remotePatterns cannot be configured at build time without
+   baking the hostname in — the one thing assetUrl() exists to avoid. See
+   ProductCard.tsx for the same reasoning on the storefront. */
+
 import React, { useEffect, useState } from 'react';
 import { Category, Product } from '../types';
 import { Image as ImageIcon, ArrowLeft } from 'lucide-react';
