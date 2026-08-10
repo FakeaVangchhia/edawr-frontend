@@ -1,125 +1,175 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Overview
 
-eDawr is a grocery ordering and delivery platform for Aizawl (Mizoram, India). It is a monorepo with three parts:
+eDawr is a **quick-commerce** grocery platform for Aizawl, Mizoram: customers
+order from a web storefront and a rider delivers on a 15-minute promise.
 
-- `frontend/` — Next.js 16 (App Router, React 19, Tailwind v4). Customer storefront + admin console. **UI only — it serves no API routes.**
-- `backend/` — Django 6 + Django REST Framework + SQLite. **This is the API.** Everything the frontend and mobile app read or write goes through it.
-- `mobile/` — Expo / React Native (SDK 54) app used by delivery riders.
+- `frontend/` — Next.js 16 (App Router, React 19, Tailwind v4). Storefront +
+  admin console. **UI only — it serves no API routes.**
+- `backend/` — Django 6 + DRF + SQLite. **This is the API.**
+- `mobile/` — Expo / React Native (SDK 54), the rider app.
 
-Supabase and the WhatsApp ordering module were removed and replaced by this backend. The backend was migrated from FastAPI/SQLAlchemy/Pydantic to Django/DRF; no FastAPI code remains. Do not reintroduce a client-side database, and do not reintroduce FastAPI.
+Supabase and the WhatsApp ordering module were removed. The backend was migrated
+from FastAPI/SQLAlchemy/Pydantic to Django/DRF; no FastAPI code remains. Do not
+reintroduce a client-side database, and do not reintroduce FastAPI.
+
+**`backend/` is a separate git repository** with its own remote
+(`edawr-backend`), ignored by the root repo. Commit backend changes from inside
+`backend/`. Do not `git add backend` at the root — that records a gitlink which
+clones as an empty directory.
 
 ## Commands
 
-Backend (run from `backend/`). **Dependencies are managed with uv, not pip** — there is no `requirements.txt`. Never run `pip install` here; use `uv add`, which updates `pyproject.toml` and `uv.lock` together. See `backend/docs/uv.md`.
+Backend (from `backend/`). **Dependencies are managed with uv, not pip** — there
+is no `requirements.txt`. Never run `pip install`; use `uv add`, which updates
+`pyproject.toml` and `uv.lock` together.
 ```bash
 uv sync                                  # install from uv.lock
 uv run manage.py migrate                 # create/update the schema
 uv run manage.py seed                    # load sample data (deletes all rows)
 uv run manage.py runserver 8000          # use 0.0.0.0:8000 for the phone
 uv run manage.py makemigrations          # after editing api/models.py
-uv run manage.py shell                   # REPL with Django configured
-```
-`uv run <cmd>` executes inside the project venv — no activation step. `uv.lock` is committed and must never be hand-edited.
-Interactive docs at http://localhost:8000/docs. Seeded admin: `admin@edawr.local` / `admin1234`.
-
-Frontend (run from `frontend/`):
-```bash
-npm run dev      # dev server at http://localhost:3000
-npm run build    # production build
-npm run start    # serve production build
-npm run lint     # eslint (flat config in eslint.config.mjs)
+uv run manage.py test                    # 160 tests, ~1s
+uv run manage.py check --deploy          # before shipping
 ```
 
-Mobile (run from `mobile/`):
-```bash
-npm start        # expo start (dev server / QR code)
-npm run android  # expo start --android
-npm run ios      # expo start --ios
+Frontend (from `frontend/`): `npm run dev` · `npm run build` · `npm run lint`
+Mobile (from `mobile/`): `npm start` · `npx expo-doctor`
+
+**There are no frontend or mobile tests.** Adding them is the largest open gap;
+if you touch either package substantially, consider whether you can leave a test
+behind.
+
+## The rules that matter
+
+### Money is Decimal, and it is never computed on the client
+Every price, fee and total is `DecimalField` server-side and quantised
+ROUND_HALF_UP in `api/pricing.py`. A float cannot represent 0.1, so a basket
+totalled in floats drifts — that is a rounding error handed to a customer on a
+bill.
+
+The checkout request carries **product ids and quantities only**. It carries no
+price, no fee and no total, and the server reads none from it. `/api/store/quote`
+exists so the cart drawer shows the same arithmetic that will charge the
+customer. Do not add up line totals in TypeScript — that is a second pricing
+engine, and it will disagree with the server the first time a fee changes.
+
+DRF is configured with `COERCE_DECIMAL_TO_STRING = False` so money arrives as a
+JSON number, because the clients display it rather than recompute it.
+
+### Order status is a state machine
+Legal moves are declared in `Order.TRANSITIONS` and enforced by
+`Order.advance_status()`, which also stamps the matching timestamp exactly once.
+**Never assign `order.status` directly.** An illegal move raises `ValueError`,
+which views turn into a 409 — a conflict with the order's state, not a bad
+request.
+
+```
+Placed → Packing → Ready → Dispatched → Delivered
+   └────────┴────────┴──────────────────→ Cancelled
+                       Dispatched → Ready   (rider hands it back)
 ```
 
-There is no automated test suite in any package.
+Cancelling goes through `checkout.cancel_order()`, never `advance_status` alone,
+because it must also restore stock under a lock.
 
-## Architecture
+### Two product serializers, on purpose
+`ProductSerializer` (admin) carries cost price, supplier and shelf location.
+`StoreProductSerializer` (public) carries none of them and reduces `stock` to
+`in_stock` + `low_stock`. They are separate classes so exposing margin data would
+need a deliberate edit rather than a forgotten exclusion. Same reasoning splits
+`OrderSerializer` from `OrderTrackingSerializer`.
 
-### The API base URL indirection — the seam between UI and backend
-`frontend/src/lib/api.ts` builds request URLs from `NEXT_PUBLIC_API_URL` (set to `http://localhost:8000`). All data access goes through `apiUrl()` (public) or `authFetch()` (attaches the admin bearer token). **This is the only place the backend URL appears** — repointing the app is a one-variable change, so never hardcode a host in a component.
-
-### Backend layout
-Two packages. `backend/config/` is the Django *project*: `settings.py` (all configuration — env loading, database, CORS, DRF, media), `urls.py` (root URL table; mounts the api app, `/docs`, `/uploads`), `wsgi.py`, `asgi.py`. `backend/api/` is the single Django *app*: `models.py`, `serializers.py`, `authentication.py`, `permissions.py`, `security.py`, `exceptions.py`, `apps.py`, `urls.py`, `migrations/`, `management/commands/seed.py`, and `views/` with one module per resource.
-
-Adding a resource means one view module, one `path()` line in `api/urls.py`, and usually a serializer.
-
-**`backend/docs/drf.md` is the learning guide** — a concept-by-concept FastAPI→DRF translation written against this codebase, with a "adding an endpoint" checklist. Read it before writing backend code. `backend/README.md` has the endpoint table and deployment notes.
-
-### URLs are separate from views, and carry no trailing slash
-`api/urls.py` is the complete routing table. Every path is written **without** a trailing slash (`/api/products`, not `/api/products/`) because that is what the frontend and Expo app call, and `APPEND_SLASH = False` in settings so a mismatch 404s honestly instead of redirecting (a redirected POST loses its body).
-
-Path converters replace FastAPI's type-annotated path params: `<int:product_id>` matches digits only and passes an `int` to the view. A non-numeric segment never matches, so `GET /api/products/abc` 404s before any view runs.
+### Checkout is one transaction, with rows locked in primary-key order
+`api/checkout.py` locks product rows with `select_for_update()`, ordered by id so
+two baskets containing the same products cannot deadlock. Stock check, item
+insert and stock decrement all land together or not at all. The lock is a no-op
+on SQLite — which is why `DATABASE_URL` must point at Postgres before real
+traffic.
 
 ### Auth
-`AdminLogin.tsx` POSTs `{email, password}` to `/api/auth/login` and gets `{access_token, token_type, username}`. The session is cached in `sessionStorage` under `edawr-admin-session` (`src/lib/auth.ts`) and sent as a Bearer token by `authFetch`.
+- `api/authentication.py` answers *who is this?* and never rejects.
+- `api/permissions.py` answers *may they?* and rejects.
+- Admin and rider tokens share a secret and are told apart by a `typ` claim.
+  Each authentication class returns `None` — never raises — for the other's
+  token, because DRF stops at the first class that returns a user.
+- **The rider comes from the token, never the body.** `accept`/`reject`/`status`
+  take no rider id and each checks ownership.
+- `is_active` is re-checked on every request, so deactivating a rider revokes
+  access immediately rather than when their 12-hour token expires.
+- A valid token of the wrong kind gets **403**, not 401. 401 means "I don't know
+  who you are" and is what makes the web app clear its stored session; clearing
+  it on 403 would sign an admin out of pages they merely lack rights for.
 
-Server-side the old `require_admin` dependency is split in two, which is the DRF model:
-- `api/authentication.py` — `AdminJWTAuthentication` answers *who is this?*. Runs on every request via `DEFAULT_AUTHENTICATION_CLASSES`, sets `request.user` to an `AdminUser` or `None`. Never rejects an anonymous request.
-- `api/permissions.py` — `IsAdmin` answers *may they?* and rejects.
+### Public endpoints are the security boundary
+`api/urls.py` marks which routes are public. Checkout and tracking are
+unauthenticated because a customer has no account, so each is throttled and
+tracking is keyed on a 190-bit token rather than a sequential id.
 
-Attach guards **declaratively**, not with manual checks:
-- Whole-resource admin views subclass `AdminAPIView` (= `APIView` + `permission_classes = [IsAdmin]`) — see `views/products.py`.
-- Mixed-access modules set `permission_classes` per view class — see `views/orders.py`, which has `[IsAdmin]` manager views and `[IsRider]` rider views side by side.
+## Frontend specifics
 
-**Riders authenticate too.** The mobile app signs in at `POST /api/auth/rider/login` with `{phone, pin}` and gets `{access_token, rider}`. Rider PINs are PBKDF2-hashed in `User.pin_hash` (NULL = cannot sign in); managers set one via the write-only `pin` field on `POST /api/users`.
+### This is not the Next.js you know
+Next 16 has breaking changes (`frontend/AGENTS.md`). Consult
+`frontend/node_modules/next/dist/docs/` before writing framework code. In
+particular:
+- **Middleware is called Proxy.** `src/proxy.ts` is the current convention, not
+  dead code. It carries the CSP with a per-request nonce.
+- `params` in a dynamic route is a **Promise** and must be awaited.
+- Turbopack is the default for `dev` and `build`.
 
-Both token kinds are signed with the same `JWT_SECRET` and told apart by a **`typ` claim** (`"admin"` / `"rider"`, absent = admin, for FastAPI-era tokens). `AdminJWTAuthentication` and `RiderJWTAuthentication` both run on every request and both return `None` — never raise — for a token carrying the other's `typ`, because DRF stops at the first class that returns a user and a raise would end the chain early. That is why `decode_token()` takes an `expected_type`.
+### The CSP names the API origin
+`src/proxy.ts` derives `connect-src` and `img-src` from `NEXT_PUBLIC_API_URL`.
+Get that wrong and the browser blocks the catalogue and every product image, and
+the store renders empty. It is the first thing to check when nothing loads.
 
-**The rider is taken from the token, never the body.** `accept`/`reject`/`status` used to read `delivery_boy_id` out of the JSON payload while requiring no credentials, so any caller could move any order. They now take no rider id at all, and each checks ownership (`order.delivery_boy_id != request.user.id` → 403). `/api/delivery/{id}/dashboard` verifies the path id is the caller. `AssignSerializer` still carries a `delivery_boy_id` because a *manager* legitimately assigns work to someone else.
+### Never set state synchronously inside an effect
+`react-hooks/set-state-in-effect` is an error here, and the fix is structural
+rather than a suppression: tag fetched data with the query that produced it and
+**derive** the loading flag, and refresh by bumping a token from an event
+handler. See `Storefront.tsx` and `ManagerDashboard.tsx`.
 
-JWTs are unchanged from the FastAPI backend (PyJWT, HS256, `sub` = email, same `JWT_SECRET`). Password hashing is **not**: `django.contrib.auth.hashers` (PBKDF2) replaced bcrypt, so old hashes no longer verify — re-seed.
+### The cart is an external store, not context
+`src/lib/cart-store.ts` + `useSyncExternalStore`. No provider, no hydration
+mismatch, and two browser tabs share one basket. The cart holds a **display**
+snapshot of prices; the bill always comes from the server.
 
-### Database
-SQLite at `backend/edawr.db` by default; switch to Postgres by changing `DATABASE_URL` only (parsed by `dj-database-url`, so use the `postgres://` form). Tables mirror the old Supabase schema minus `messages` (WhatsApp) and `todos` (unused), plus an `admin_users` table. Every model sets `Meta.db_table` to pin the original table names.
+### Conventions
+- Path alias `@/*` → `src/*`.
+- Product images use plain `<img>`, not `next/image`: the host is only known at
+  runtime, so `remotePatterns` cannot be configured at build time without baking
+  it in. The lint rule is disabled per-file with that reasoning.
+- **Do not run `git push`.** Stage and commit; leave pushing to the user.
 
-**Schema changes go through migrations**, not a destructive re-seed: `makemigrations` then `migrate`. Files in `api/migrations/` are source code — commit them. `manage.py seed` now only deletes and reinserts **rows**; it never touches the schema, but it does wipe hand-added admins.
+## Backend conventions & gotchas
 
-Django issues `PRAGMA foreign_keys=ON` on every SQLite connection itself — no hand-rolled connect listener needed.
-
-`OrderItem.product` is `on_delete=models.PROTECT` on purpose — deleting a product must never erase line items from past orders. `ProductDetailView.delete` counts references first and returns a 409 telling the caller to set `status` to `inactive` instead (PROTECT alone would surface as a 500).
-
-Money columns are `FloatField` because SQLite has no decimal type; switch to `DecimalField(max_digits=10, decimal_places=2)` when moving to Postgres.
-
-### Real-time (socket.io) — optional, off by default
-`frontend/src/hooks/useSocket.ts` only connects when `NEXT_PUBLIC_SOCKET_URL` is set; otherwise it is a no-op (there is no socket.io server in this repo). `ManagerDashboard.tsx` listens for `order:created`, `order:updated`, `inventory:updated`, `product:updated` but null-guards the socket. Data is fetched via REST; don't assume events fire.
-
-### Frontend component map
-- `src/app/page.tsx` — storefront (`Storefront`).
-- `src/app/admin/page.tsx` — admin console; renders `AdminLogin` or `AdminShell` based on session.
-- `AdminShell` → `ManagerDashboard`, `ProductsDashboard`/`ProductsList`/`ProductEditor`, `CategoriesList`.
-- Path alias `@/*` → `src/*` (tsconfig).
-
-### Mobile app
-Two screens: `LoginScreen` (phone + PIN) → `DeliveryScreen` (see `mobile/App.tsx`). All requests go through `mobile/src/api.ts`, which attaches the bearer token and raises `UnauthorizedError` on 401/403 so the app can sign the rider out instead of alerting. The token lives in `expo-secure-store` (`src/session.ts`) and is revalidated against `/api/auth/rider/me` on launch.
-
-**`mobile/src/config.ts` resolves the API URL in four steps**, and the order is the point: `EXPO_PUBLIC_API_URL` (ignored if it names localhost, which a phone can never reach) → the Expo dev server's LAN IP, *dev only* → `expo.extra.apiUrl` in `app.json` → localhost in dev, or a **thrown error** in a release build. That last branch is deliberate: `debuggerHost` does not exist outside Expo Go, so the old code silently fell back to `localhost:8000` in a production APK and every request failed against an address that cannot exist on the device. A release build with no backend configured now fails loudly at startup instead.
-
-`ALLOWED_HOSTS` defaults to `*` in development so the LAN-IP request is accepted.
-
-## Conventions & gotchas
-
-- **Next.js is a newer major with breaking changes** (`frontend/AGENTS.md`, referenced by `frontend/CLAUDE.md`). Consult `frontend/node_modules/next/dist/docs/` before writing framework code rather than relying on older Next.js knowledge.
-- **Do not run `git push`.** Stage and commit if asked, but leave pushing to the user (per `frontend/AGENTS.md`).
-- Env files are gitignored in both `frontend/` and `backend/`; each has a `.env.example`. The backend runs with no `.env` at all — every setting has a working default.
-- Error responses are always `{"detail": "..."}`. `api/exceptions.py` is a custom `EXCEPTION_HANDLER` that flattens DRF's field-keyed validation errors into that shape (keeping the original under `errors`). Raise `NotFound`/`ValidationError`, or return `Response({"detail": ...}, status=...)`; never return a bare error dict without `detail`.
-- **A bad request body is 400, not 422** (FastAPI returned 422). Clients only read `detail`, so nothing broke.
-- **DRF `CharField` rejects `""` by default.** The product editor submits empty strings for untouched optional fields, so optional text fields use the shared `OPTIONAL_TEXT` kwargs in `serializers.py` (`allow_blank=True, allow_null=True, default=None`).
-- **`default=` is what makes PUT replace.** `required=False` alone leaves an omitted field unchanged; an explicit `default=` is applied on a non-partial update. Optional serializer fields declare defaults for that reason.
-- Order status values are capitalized (`"Pending"`, `"Assigned"`, `"Delivered"`) and compared literally in the UI; they are `Order.STATUS_CHOICES` constants. Product `status` is matched case-insensitively in `views/store.py` (`status__iexact`).
-- Uploads return a **relative** `/uploads/<name>` path so the hostname isn't baked into the database; the frontend prefixes it via `assetUrl()`. Django parses multipart natively — the file is `request.FILES["file"]`, no extra package.
-- Timestamps are handled by `USE_TZ = True`; DRF emits `...Z`. No custom serializer hook is needed (the FastAPI version needed one to avoid a 5h30m IST offset bug).
-- Nest-heavy queries need `.prefetch_related("items")` — `OrderSerializer` nests order items, so omitting it silently produces an N+1.
-- **Nothing creates orders** — that lived in the removed WhatsApp webhook. `manage.py seed` provides sample orders. `POST /api/orders` + storefront checkout is the main open task; wrap it in `@transaction.atomic`.
-- **`POST /api/orders/{id}/reject` is a no-op** — nothing ever sets `offered_to_delivery_boy_id`, so there is no offer to clear. Needs a dispatch step or an `order_rejections` table; don't paper over it.
-- `ManagerDashboard.tsx` fetches `/api/products` into a `products` state that nothing reads (pre-existing dead code).
-- `backend/edawr-sqlalchemy-backup.db` is the pre-migration SQLite file, kept for data recovery. It is not used by anything.
+- Error responses are always `{"detail": "..."}` (`api/exceptions.py`). Raise
+  `NotFound`/`ValidationError`, or return `Response({"detail": ...}, status=...)`.
+  Never return a bare error dict.
+- A bad request body is **400**, not 422.
+- **DRF `CharField` rejects `""`.** Optional text fields use the shared
+  `OPTIONAL_TEXT` kwargs.
+- **`default=` is what makes PUT replace.** `required=False` alone leaves an
+  omitted field unchanged.
+- URLs carry **no trailing slash** and `APPEND_SLASH = False`, because a
+  redirected POST loses its body.
+- Nest-heavy queries need `.prefetch_related("items")` and
+  `.select_related("delivery_boy")`, or listing 50 orders is 101 queries.
+- `OrderItem.product` is `on_delete=PROTECT` on purpose; the delete view counts
+  references first and returns a 409 telling the caller to deactivate instead.
+- Uploads return a **relative** `/uploads/<name>` path; the frontend prefixes it
+  via `assetUrl()`.
+- Phone numbers are normalised to `+91XXXXXXXXXX` by `api/validators.py` on both
+  storage and login. Two spellings of one number would otherwise be two accounts.
+- `manage.py seed` deletes and reinserts **rows** only; it never touches the
+  schema, but it does wipe hand-added admins.
+- Migrations are source code — commit them, and write them to survive existing
+  data. `0003_quick_commerce` is the worked example: it renames the old status
+  vocabulary, backfills totals, dedupes category names before a unique
+  constraint, and populates tracking tokens row by row before making the column
+  unique (a single `AddField` with a callable default gives every row the *same*
+  value).
+- Tests swap in an MD5 password hasher (`settings.TESTING`). PBKDF2 must stay
+  slow in production; it turned a 6-second suite into 53 seconds.

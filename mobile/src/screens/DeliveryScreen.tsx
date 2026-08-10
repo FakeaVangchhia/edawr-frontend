@@ -3,9 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
+  RefreshControl,
   SafeAreaView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -13,10 +16,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import {
+  ConflictError,
+  OfflineError,
   UnauthorizedError,
   acceptOrder,
   fetchDashboard,
   rejectOrder,
+  setAvailability,
   setOrderStatus,
 } from '../api';
 import { useSocket } from '../hooks/useSocket';
@@ -31,7 +37,14 @@ const emptyDashboard: DeliveryDashboard = {
   incoming_orders: [],
   active_order: null,
   recent_orders: [],
+  is_available: true,
 };
+
+/**
+ * There is no socket.io server in this repo, so polling is the real refresh
+ * path rather than a fallback. Fifteen seconds on a 15-minute promise.
+ */
+const REFRESH_MS = 15_000;
 
 function formatTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -41,11 +54,31 @@ function formatItems(order: Order) {
   return order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 }
 
+/** Whole rupees — a rider counting cash at a door does not need paise. */
+function formatMoney(value: number) {
+  return `₹${Math.round(value)}`;
+}
+
+function countdownLabel(order: Order) {
+  if (order.is_late) return 'Overdue';
+  if (order.minutes_remaining <= 0) return 'Due now';
+  return `${order.minutes_remaining} min left`;
+}
+
 export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProps) {
-  const { socket, isConnected } = useSocket();
+  // `isConnected` is deliberately unused: there is no socket.io server in this
+  // repo, so a "Live" indicator driven by it would read Offline permanently in
+  // every real deployment. The header shows on/off duty instead, which is a
+  // fact the rider controls and cares about.
+  const { socket } = useSocket();
   const [dashboard, setDashboard] = useState<DeliveryDashboard>(emptyDashboard);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submittingId, setSubmittingId] = useState<number | null>(null);
+  // Shown as a quiet banner rather than an alert. Losing signal is an expected
+  // part of the job, not an error the rider did something to cause.
+  const [isOffline, setIsOffline] = useState(false);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const user = session.rider;
   const token = session.access_token;
@@ -64,9 +97,16 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
   const refreshDashboard = useCallback(async () => {
     try {
       setDashboard(await fetchDashboard(user.id, token));
+      setIsOffline(false);
     } catch (error) {
       if (error instanceof UnauthorizedError) {
         handleExpiredSession();
+        return;
+      }
+      if (error instanceof OfflineError) {
+        // Keep whatever is already on screen. A rider in a stairwell should
+        // still be able to read the address they are delivering to.
+        setIsOffline(true);
         return;
       }
       console.error(error);
@@ -79,6 +119,49 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
   useEffect(() => {
     refreshDashboard();
   }, [refreshDashboard]);
+
+  // Poll, because there is no socket server to push to us.
+  useEffect(() => {
+    const timer = setInterval(refreshDashboard, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [refreshDashboard]);
+
+  const onPullToRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshDashboard();
+    setRefreshing(false);
+  }, [refreshDashboard]);
+
+  const toggleAvailability = useCallback(
+    async (next: boolean) => {
+      setTogglingAvailability(true);
+      // Optimistic: the switch must feel instant. Reverted below if the call
+      // fails, so it can never show "online" while the server thinks otherwise.
+      setDashboard(current => ({ ...current, is_available: next }));
+      try {
+        await setAvailability(next, token);
+        await refreshDashboard();
+      } catch (error) {
+        setDashboard(current => ({ ...current, is_available: !next }));
+        if (error instanceof UnauthorizedError) {
+          handleExpiredSession();
+        } else if (error instanceof OfflineError) {
+          setIsOffline(true);
+        } else {
+          Alert.alert('Could not update', 'Please try again.');
+        }
+      } finally {
+        setTogglingAvailability(false);
+      }
+    },
+    [token, refreshDashboard, handleExpiredSession],
+  );
+
+  const callCustomer = useCallback((phone: string) => {
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      Alert.alert('Cannot place call', phone);
+    });
+  }, []);
 
   useEffect(() => {
     if (!socket) {
@@ -121,6 +204,18 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
         handleExpiredSession();
         return;
       }
+      if (error instanceof OfflineError) {
+        setIsOffline(true);
+        Alert.alert('You are offline', 'That did not go through. Try again once you have signal.');
+        return;
+      }
+      if (error instanceof ConflictError) {
+        // Another rider got there first, or the store cancelled it. Not a
+        // failure the rider caused, and the feed needs to catch up.
+        Alert.alert('Order already moved on', error.message);
+        await refreshDashboard();
+        return;
+      }
       Alert.alert('Action failed', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setSubmittingId(null);
@@ -155,6 +250,21 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
       <View style={styles.metaRow}>
         <Ionicons name="cube-outline" size={16} color="#64748b" />
         <Text style={styles.metaText}>{formatItems(item)}</Text>
+      </View>
+
+      {/* The two numbers that decide whether to take the job: how much cash to
+          carry back, and how long is left on the promise. */}
+      <View style={styles.factRow}>
+        <View style={styles.factBox}>
+          <Text style={styles.factLabel}>Collect cash</Text>
+          <Text style={styles.factValue}>{formatMoney(item.grand_total)}</Text>
+        </View>
+        <View style={styles.factBox}>
+          <Text style={styles.factLabel}>Promise</Text>
+          <Text style={[styles.factValue, item.is_late && styles.factValueLate]}>
+            {countdownLabel(item)}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.offerActions}>
@@ -192,10 +302,39 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
           </View>
         </View>
         <View style={styles.headerRight}>
-          <View style={[styles.connectionDot, isConnected ? styles.connectionLive : styles.connectionIdle]} />
-          <Text style={styles.connectionLabel}>{isConnected ? 'Live' : 'Offline'}</Text>
+          <Text style={styles.connectionLabel}>
+            {dashboard.is_available ? 'On duty' : 'Off duty'}
+          </Text>
+          <Switch
+            value={dashboard.is_available}
+            onValueChange={toggleAvailability}
+            disabled={togglingAvailability}
+            trackColor={{ false: '#94a3b8', true: '#34d399' }}
+            thumbColor="#fff"
+          />
         </View>
       </View>
+
+      {/* A banner, not an alert: riders lose signal constantly and a modal on
+          every dropout would be unusable. Whatever was last loaded stays on
+          screen underneath it. */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#7c2d12" />
+          <Text style={styles.offlineBannerText}>
+            No connection — showing your last update. Pull down to retry.
+          </Text>
+        </View>
+      )}
+
+      {!dashboard.is_available && (
+        <View style={styles.dutyBanner}>
+          <Ionicons name="pause-circle-outline" size={16} color="#1e3a8a" />
+          <Text style={styles.dutyBannerText}>
+            You are off duty. Switch on to start receiving orders.
+          </Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -208,6 +347,9 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
           data={incomingOrders}
           keyExtractor={item => item.id.toString()}
           renderItem={renderIncomingCard}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onPullToRefresh} tintColor="#4169E1" />
+          }
           ListHeaderComponent={
             <>
               <View style={styles.heroCard}>
@@ -249,13 +391,39 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
                     <Ionicons name="location-outline" size={16} color="#64748b" />
                     <Text style={styles.metaText}>{activeOrder.customer_address}</Text>
                   </View>
-                  <View style={styles.metaRow}>
-                    <Ionicons name="call-outline" size={16} color="#64748b" />
-                    <Text style={styles.metaText}>{activeOrder.customer_phone}</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.metaRow}
+                    onPress={() => callCustomer(activeOrder.customer_phone)}
+                  >
+                    <Ionicons name="call-outline" size={16} color="#4169E1" />
+                    <Text style={[styles.metaText, styles.metaLink]}>
+                      {activeOrder.customer_phone}
+                    </Text>
+                  </TouchableOpacity>
                   <View style={styles.metaRow}>
                     <Ionicons name="cube-outline" size={16} color="#64748b" />
                     <Text style={styles.metaText}>{formatItems(activeOrder)}</Text>
+                  </View>
+                  {activeOrder.delivery_notes ? (
+                    <View style={styles.metaRow}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={16} color="#64748b" />
+                      <Text style={styles.metaText}>{activeOrder.delivery_notes}</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.factRow}>
+                    <View style={styles.factBox}>
+                      <Text style={styles.factLabel}>Collect cash</Text>
+                      <Text style={styles.factValue}>{formatMoney(activeOrder.grand_total)}</Text>
+                    </View>
+                    <View style={styles.factBox}>
+                      <Text style={styles.factLabel}>Promise</Text>
+                      <Text
+                        style={[styles.factValue, activeOrder.is_late && styles.factValueLate]}
+                      >
+                        {countdownLabel(activeOrder)}
+                      </Text>
+                    </View>
                   </View>
 
                   <TouchableOpacity
@@ -278,8 +446,20 @@ export default function DeliveryScreen({ session, onLogout }: DeliveryScreenProp
               {incomingOrders.length === 0 && (
                 <View style={styles.queueEmptyCard}>
                   <Ionicons name="notifications-off-outline" size={24} color="#94a3b8" />
-                  <Text style={styles.queueEmptyTitle}>No nearby offers in queue</Text>
-                  <Text style={styles.queueEmptyText}>We will push the next request in your service area here.</Text>
+                  <Text style={styles.queueEmptyTitle}>
+                    {!dashboard.is_available
+                      ? 'You are off duty'
+                      : activeOrder
+                        ? 'Finish your current delivery first'
+                        : 'No nearby offers right now'}
+                  </Text>
+                  <Text style={styles.queueEmptyText}>
+                    {!dashboard.is_available
+                      ? 'Switch on at the top to start receiving orders.'
+                      : activeOrder
+                        ? 'New offers appear once this one is delivered — one drop at a time keeps the promise.'
+                        : 'Packed orders inside your service radius will appear here.'}
+                  </Text>
                 </View>
               )}
 
@@ -669,6 +849,66 @@ const styles = StyleSheet.create({
   donePillText: {
     color: '#059669',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#ffedd5',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  offlineBannerText: {
+    color: '#7c2d12',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  dutyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dutyBannerText: {
+    color: '#1e3a8a',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  factRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  factBox: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  factLabel: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  factValue: {
+    color: '#0f172a',
+    fontSize: 17,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  factValueLate: {
+    color: '#b91c1c',
+  },
+  metaLink: {
+    color: '#4169E1',
     fontWeight: '700',
   },
 });

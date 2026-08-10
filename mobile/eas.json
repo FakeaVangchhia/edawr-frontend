@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/eas.json",
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "//": "A dev client still auto-detects the LAN IP, so nothing is set here."
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "//": "Point this at your staging backend before building. Without it the build throws at startup by design — see src/config.ts — rather than silently calling localhost from a phone.",
+        "EXPO_PUBLIC_API_URL": "https://staging-api.example.com"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "//": "Play Store rejects a re-used versionCode. autoIncrement means one less way to waste a release.",
+        "autoIncrement": "versionCode"
+      },
+      "ios": {
+        "autoIncrement": "buildNumber"
+      },
+      "env": {
+        "//": "REQUIRED. This is the single most important value in this file: a production build with the wrong API URL fails every request on a device you cannot reach.",
+        "EXPO_PUBLIC_API_URL": "https://api.example.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
