@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "eDawr Delivery",
+    "slug": "edawr-delivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.edawr.delivery"
+    },
+    "android": {
+      "package": "com.edawr.delivery"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "//": "apiUrl is the backend a RELEASE build talks to. Development ignores it and auto-detects the dev machine's LAN IP instead (see src/config.ts). Leaving it null makes a release build fail loudly at startup rather than silently calling localhost.",
+      "apiUrl": null
+    }
+  }
+}

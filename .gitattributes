@@ -1,0 +1,26 @@
+# Normalise line endings so a Windows checkout and a Linux CI runner agree on
+# file contents. Without this, every file authored on Windows lands in the repo
+# with CRLF and shell scripts break when they reach a container.
+* text=auto eol=lf
+
+# Files that must keep CRLF to work on Windows.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary — never touch these, and never try to diff them as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.db binary
+*.sqlite3 binary
+*.keystore binary
+*.jks binary
+
+# Generated lockfiles: keep them in the repo, but collapse them in diffs and
+# don't let GitHub count them as authored code.
+package-lock.json linguist-generated=true -diff
+uv.lock linguist-generated=true -diff
