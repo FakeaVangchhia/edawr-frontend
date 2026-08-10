@@ -95,11 +95,20 @@ can reach it. Seeded rider: `+919000000002` / PIN `4813`.
 ## Tests
 
 ```bash
-cd backend && uv run manage.py test        # 160 tests, ~1s
+cd backend  && uv run manage.py test       # 160 tests, ~1s
+cd frontend && npm test                    # 27 tests, ~1.5s
 ```
 
-There is no test suite for the frontend or the mobile app yet — that is the
-largest remaining gap. See "Known gaps" below.
+The backend suite is the substantial one: pricing arithmetic, checkout under
+concurrency, the state machine, permissions, and what each serializer must
+never leak.
+
+The frontend suite covers the two pieces of pure logic that can silently corrupt
+what a customer sees — the cart store (persistence, cross-tab sync, malformed
+input, quota failures) and money formatting. Component and end-to-end tests are
+still missing; see "Known gaps".
+
+**The mobile app has no tests at all.**
 
 ## Architecture
 
@@ -158,8 +167,10 @@ that stops the last unit of stock being sold twice is a no-op there.
 
 ## Known gaps
 
-- **No frontend or mobile tests.** The backend has 160; the other two packages
-  have none. This is the biggest remaining hole.
+- **No component, end-to-end or mobile tests.** The backend has 160 and the
+  frontend has 27 covering pure logic, but nothing renders a component or drives
+  a real checkout in a browser, and the rider app is untested entirely. This is
+  the biggest remaining hole.
 - **Cash on delivery only.** No payment gateway is integrated. `payment_method`
   exists on the order and `PAYMENT_CHOICES` has one entry.
 - **No over-the-air updates or crash reporting in the mobile app.** Every fix

@@ -36,12 +36,14 @@ uv run manage.py test                    # 160 tests, ~1s
 uv run manage.py check --deploy          # before shipping
 ```
 
-Frontend (from `frontend/`): `npm run dev` · `npm run build` · `npm run lint`
+Frontend (from `frontend/`): `npm run dev` · `npm run build` · `npm run lint` ·
+`npm test` (vitest, 27 tests)
 Mobile (from `mobile/`): `npm start` · `npx expo-doctor`
 
-**There are no frontend or mobile tests.** Adding them is the largest open gap;
-if you touch either package substantially, consider whether you can leave a test
-behind.
+**The mobile app has no tests, and the frontend has no component or end-to-end
+tests** — only pure logic (cart store, money formatting). That is the largest
+open gap; if you touch either package substantially, consider whether you can
+leave a test behind.
 
 ## The rules that matter
 
