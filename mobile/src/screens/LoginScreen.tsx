@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { riderLogin } from '../api';
+import { OfflineError, riderLogin } from '../api';
 import { API_URL } from '../config';
 import { RiderSession } from '../types';
 
@@ -39,12 +39,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     try {
       onLogin(await riderLogin(phone.trim(), pin));
     } catch (err) {
-      // A failed sign-in and an unreachable server are different problems with
-      // different fixes, so they get different messages. `riderLogin` throws
-      // UnauthorizedError for a 401, and a TypeError for a transport failure.
+      // A wrong PIN and an unreachable server are different problems with
+      // different fixes, so they get different messages. The transport case is
+      // `OfflineError` — `api.ts` converts every fetch rejection into one, so
+      // testing for `TypeError` here (as this once did) could never match, and
+      // the most useful diagnostic on the whole screen was unreachable: naming
+      // the host is what tells a rider the build is pointed at the wrong
+      // backend. The generic offline copy is also wrong here, since the login
+      // screen does no retrying.
       setError(
-        err instanceof TypeError
-          ? `Could not reach the server at ${API_URL}.`
+        err instanceof OfflineError
+          ? `Could not reach the server at ${API_URL}. Check your connection, or the app's backend URL.`
           : err instanceof Error
             ? err.message
             : 'Sign-in failed. Please try again.',

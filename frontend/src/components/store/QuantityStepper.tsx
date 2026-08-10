@@ -8,6 +8,8 @@ interface QuantityStepperProps {
   onChange: (quantity: number) => void;
   label: string;
   compact?: boolean;
+  /** False when the item has sold out since it went into the basket. */
+  canIncrease?: boolean;
 }
 
 /**
@@ -22,8 +24,9 @@ export default function QuantityStepper({
   onChange,
   label,
   compact = false,
+  canIncrease = true,
 }: QuantityStepperProps) {
-  const atMax = quantity >= MAX_PER_ITEM;
+  const atMax = quantity >= MAX_PER_ITEM || !canIncrease;
 
   return (
     <div className={`stepper ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -46,7 +49,13 @@ export default function QuantityStepper({
 
       <button
         type="button"
-        aria-label={atMax ? `Maximum ${MAX_PER_ITEM} per item` : `Add one more ${label}`}
+        aria-label={
+          !canIncrease
+            ? `${label} is out of stock`
+            : atMax
+              ? `Maximum ${MAX_PER_ITEM} per item`
+              : `Add one more ${label}`
+        }
         disabled={atMax}
         onClick={(event) => {
           event.stopPropagation();

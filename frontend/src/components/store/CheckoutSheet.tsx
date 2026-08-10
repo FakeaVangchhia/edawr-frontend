@@ -23,6 +23,26 @@ interface FieldErrors {
 }
 
 /**
+ * Mirrors `normalise_phone` in `backend/api/validators.py`, **including its
+ * length conditions**.
+ *
+ * The country code is only stripped when there are 12 digits, and a trunk zero
+ * only when there are 11. Stripping a leading "91" unconditionally would reject
+ * `9123456789` — a perfectly valid ten-digit Indian mobile that happens to start
+ * with 91 — leaving that customer unable to check out at all, with a message
+ * insisting their own number is invalid.
+ */
+export function isValidIndianMobile(input: string): boolean {
+  let digits = input.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  return /^[6-9]\d{9}$/.test(digits);
+}
+
+/**
  * Address and contact details, then place the order.
  *
  * Validation here is a courtesy, not a control: the server validates the same
@@ -77,10 +97,7 @@ export default function CheckoutSheet({
     if (details.customer_name.trim().length < 2) {
       errors.customer_name = 'Who should the rider ask for?';
     }
-    // Ten digits starting 6-9, after stripping whatever punctuation was typed.
-    // Same rule as `normalise_phone` on the server.
-    const digits = details.customer_phone.replace(/\D/g, '').replace(/^(91|0)/, '');
-    if (!/^[6-9]\d{9}$/.test(digits)) {
+    if (!isValidIndianMobile(details.customer_phone)) {
       errors.customer_phone = 'Enter a valid 10-digit mobile number.';
     }
     if (details.customer_address.trim().length < 8) {

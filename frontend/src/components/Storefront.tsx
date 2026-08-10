@@ -11,7 +11,13 @@ import {
   fetchStoreConfig,
   quoteBasket,
 } from '@/lib/store-api';
-import type { BasketQuote, StoreCategory, StoreConfig, StoreProduct } from '@/types';
+import type {
+  BasketQuote,
+  StoreCategory,
+  StoreConfig,
+  StoreProduct,
+  UnavailableItem,
+} from '@/types';
 import CartDrawer from './store/CartDrawer';
 import CategoryRail from './store/CategoryRail';
 import CheckoutSheet from './store/CheckoutSheet';
@@ -20,6 +26,16 @@ import StoreHeader from './store/StoreHeader';
 
 /** Long enough that typing "tomato" is one request, short enough to feel live. */
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * Rows per page, matching the backend's STORE_PAGE_SIZE default.
+ *
+ * "Load more" raises the limit and refetches rather than appending a second
+ * page. Slightly more bytes, but it cannot produce duplicates or gaps when the
+ * catalogue changes between requests — and a grocery catalogue is a few hundred
+ * rows, not a feed.
+ */
+const PAGE_SIZE = 60;
 
 export default function Storefront() {
   const router = useRouter();
@@ -31,8 +47,21 @@ export default function Storefront() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [category, setCategory] = useState('All');
+  const [limit, setLimit] = useState(PAGE_SIZE);
   /** Bumped by the retry button to re-run the catalogue effect. */
   const [reloadToken, setReloadToken] = useState(0);
+
+  // Changing what is being browsed resets paging. Done in the handlers rather
+  // than an effect so no state is set synchronously during one.
+  const changeSearch = (value: string) => {
+    setSearch(value);
+    setLimit(PAGE_SIZE);
+  };
+
+  const changeCategory = (value: string) => {
+    setCategory(value);
+    setLimit(PAGE_SIZE);
+  };
 
   /**
    * The catalogue, tagged with the query that produced it.
@@ -51,6 +80,23 @@ export default function Storefront() {
   const [quoteResult, setQuoteResult] = useState<{
     signature: string;
     quote: BasketQuote | null;
+  } | null>(null);
+  /** Bumped to force a re-quote when the basket itself has not changed. */
+  const [quoteReloadToken, setQuoteReloadToken] = useState(0);
+
+  /**
+   * Items a *checkout attempt* rejected, tagged with the basket they were
+   * rejected for.
+   *
+   * A 409 from checkout carries the list of items that ran out between quoting
+   * and paying. The basket has not changed, so nothing else would re-derive it,
+   * and without keeping it here the customer is bounced back to a cart with
+   * nothing marked and no idea which row to fix. Tagging with the signature
+   * means it clears itself the moment they change anything.
+   */
+  const [checkoutBlockers, setCheckoutBlockers] = useState<{
+    signature: string;
+    items: UnavailableItem[];
   } | null>(null);
 
   const [isCartOpen, setCartOpen] = useState(false);
@@ -80,12 +126,12 @@ export default function Storefront() {
   }, [search]);
 
   // --- catalogue --------------------------------------------------------
-  const query = `${category}::${debouncedSearch}::${reloadToken}`;
+  const query = `${category}::${debouncedSearch}::${limit}::${reloadToken}`;
 
   useEffect(() => {
     const controller = new AbortController();
 
-    fetchProducts({ q: debouncedSearch, category }, controller.signal)
+    fetchProducts({ q: debouncedSearch, category, limit }, controller.signal)
       .then((rows) => setCatalogue({ query, products: rows, error: '' }))
       .catch((error: unknown) => {
         // An aborted request is not a failure — it means the customer typed
@@ -100,9 +146,13 @@ export default function Storefront() {
       });
 
     return () => controller.abort();
-  }, [query, debouncedSearch, category]);
+  }, [query, debouncedSearch, category, limit]);
 
   const products = catalogue?.products ?? [];
+  // A full page means the server had at least this many matches, so there may
+  // be more behind it. Without this the store silently showed only the first
+  // page while the header reported that count as if it were the whole aisle.
+  const hasMore = catalogue !== null && catalogue.products?.length === limit;
   const loadError = catalogue?.query === query ? catalogue.error : '';
   // Never loaded anything yet, so there is nothing to show but skeletons.
   const isFirstLoad = catalogue === null;
@@ -134,10 +184,14 @@ export default function Storefront() {
     // `cart.lines` is intentionally not a dependency: `lineSignature` is its
     // value-identity, and depending on the array would re-quote on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineSignature, cart.isReady]);
+  }, [lineSignature, cart.isReady, quoteReloadToken]);
 
   const quote = cart.count > 0 ? (quoteResult?.quote ?? null) : null;
   const isQuoting = cart.count > 0 && quoteResult?.signature !== lineSignature;
+
+  // Only relevant while the basket is still the one checkout rejected.
+  const blockedItems =
+    checkoutBlockers?.signature === lineSignature ? checkoutBlockers.items : [];
 
   const openCart = () => setCartOpen(true);
 
@@ -148,14 +202,14 @@ export default function Storefront() {
       <StoreHeader
         config={config}
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={changeSearch}
         cartCount={cart.count}
         cartSubtotal={quote?.grand_total ?? cart.subtotal}
         onOpenCart={openCart}
         onOpenAdmin={() => router.push('/admin')}
       />
 
-      <CategoryRail categories={categories} selected={category} onSelect={setCategory} />
+      <CategoryRail categories={categories} selected={category} onSelect={changeCategory} />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 pb-28 sm:px-6">
         <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -175,7 +229,11 @@ export default function Storefront() {
             !isFirstLoad &&
             products.length > 0 && (
               <span className="text-xs text-[var(--color-ink-faint)]">
-                {products.length} item{products.length === 1 ? '' : 's'}
+                {/* "60+" rather than "60" when the page is full: the count is
+                    what was fetched, not what exists, and stating it flatly
+                    would be a quiet lie about the size of the aisle. */}
+                {products.length}
+                {hasMore ? '+' : ''} item{products.length === 1 ? '' : 's'}
               </span>
             )
           )}
@@ -231,11 +289,26 @@ export default function Storefront() {
         )}
 
         {!isFirstLoad && products.length > 0 && (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+
+            {hasMore && (
+              <div className="mt-5 text-center">
+                <button
+                  type="button"
+                  disabled={isStale}
+                  onClick={() => setLimit((current) => current + PAGE_SIZE)}
+                  className="btn-ghost"
+                >
+                  {isStale ? 'Loading…' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -274,6 +347,7 @@ export default function Storefront() {
           quote={quote}
           isQuoting={isQuoting}
           config={config}
+          blockedItems={blockedItems}
         />
       )}
 
@@ -284,13 +358,16 @@ export default function Storefront() {
             setCartOpen(true);
           }}
           quote={quote}
-          onUnavailable={() => {
+          onUnavailable={(items) => {
             // Send the customer back to the cart — nothing can be fixed from
-            // the address form. The quote re-runs automatically once they
-            // change a quantity, and the drawer marks the offending rows from
-            // the `unavailable` list the 409 carried.
+            // the address form — carrying the list of what actually ran out so
+            // the drawer can mark those exact rows. Re-quote too: the basket is
+            // unchanged, so nothing else would refresh the totals or the
+            // availability the server now reports.
+            setCheckoutBlockers({ signature: lineSignature, items });
             setCheckoutOpen(false);
             setCartOpen(true);
+            setQuoteReloadToken((token) => token + 1);
             setReloadToken((token) => token + 1);
           }}
           onPlaced={(order) => {

@@ -86,6 +86,10 @@ export default function ProductCard({ product }: { product: StoreProduct }) {
               compact
               quantity={quantity}
               label={product.name}
+              // An item already in the basket that has since sold out must not
+              // be increasable. The disabled Add button below never applies to
+              // it, because the stepper has replaced that button entirely.
+              canIncrease={product.in_stock}
               onChange={(next) => setQuantity(product, next)}
             />
           ) : (

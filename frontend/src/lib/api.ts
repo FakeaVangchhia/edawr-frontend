@@ -94,7 +94,13 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
             ? body
             : JSON.stringify(body),
     });
-  } catch {
+  } catch (error) {
+    // An aborted request is not a network failure — it is this app cancelling
+    // its own work because the query changed. Laundering it into a NetworkError
+    // means any caller that renders `error.message` without first re-checking
+    // `signal.aborted` flashes "Could not reach the store" on every keystroke
+    // of the debounced search. Re-throw so the abort stays recognisable.
+    if (rest.signal?.aborted) throw error;
     // fetch() rejects only on a network-level failure; an HTTP 500 resolves.
     throw new NetworkError();
   }

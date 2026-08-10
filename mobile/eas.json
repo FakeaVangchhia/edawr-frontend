@@ -17,24 +17,17 @@
       "android": {
         "buildType": "apk"
       },
-      "env": {
-        "//": "Point this at your staging backend before building. Without it the build throws at startup by design — see src/config.ts — rather than silently calling localhost from a phone.",
-        "EXPO_PUBLIC_API_URL": "https://staging-api.example.com"
-      }
+      "//": "Set EXPO_PUBLIC_API_URL here, pointing at staging, before building. It is deliberately absent rather than a placeholder: src/config.ts throws at startup when nothing is configured, and a placeholder domain would disarm that guard and produce an installable build that fails every request instead."
     },
     "production": {
       "android": {
         "buildType": "app-bundle",
-        "//": "Play Store rejects a re-used versionCode. autoIncrement means one less way to waste a release.",
         "autoIncrement": "versionCode"
       },
       "ios": {
         "autoIncrement": "buildNumber"
       },
-      "env": {
-        "//": "REQUIRED. This is the single most important value in this file: a production build with the wrong API URL fails every request on a device you cannot reach.",
-        "EXPO_PUBLIC_API_URL": "https://api.example.com"
-      }
+      "//": "Set EXPO_PUBLIC_API_URL here before the first real build. Absent on purpose — see the note on the preview profile. A production build pointed at a domain nobody owns fails on a device you cannot reach, which is the exact failure the startup guard exists to prevent. autoIncrement is set because the Play Store rejects a re-used versionCode."
     }
   },
   "submit": {

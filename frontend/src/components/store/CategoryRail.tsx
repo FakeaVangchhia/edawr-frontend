@@ -49,7 +49,14 @@ interface CategoryRailProps {
 export default function CategoryRail({ categories, selected, onSelect }: CategoryRailProps) {
   if (categories.length === 0) return null;
 
-  const tiles = [{ name: 'All', image_url: null, product_count: 0 }, ...categories];
+  // `Product.category` is free text, so a store really can create a category
+  // called "All". Without this filter that produces two tiles with the same
+  // React key, both rendered as selected, and picking it filters nothing —
+  // the backend treats `category=all` as "no filter".
+  const realCategories = categories.filter(
+    (category) => category.name.trim().toLowerCase() !== 'all',
+  );
+  const tiles = [{ name: 'All', image_url: null, product_count: 0 }, ...realCategories];
 
   return (
     <nav aria-label="Product categories" className="border-b border-[var(--color-line)] bg-white">
