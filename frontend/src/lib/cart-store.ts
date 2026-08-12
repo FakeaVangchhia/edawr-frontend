@@ -157,6 +157,44 @@ export function removeLine(productId: number): void {
   commit(snapshot.lines.filter((line) => line.product.id !== productId));
 }
 
+/**
+ * Add several products at once — what "Order again" needs.
+ *
+ * One commit rather than a loop of `addOne`, which would write localStorage and
+ * notify every subscriber once per item: a twelve-item repeat order would
+ * re-render the whole grid twelve times and briefly show a basket that is
+ * partly filled.
+ *
+ * Quantities *add* to what is already there, matching what a customer expects
+ * when they repeat an order on top of a basket they had already started, and
+ * each one is clamped to MAX_PER_ITEM so the merge can never produce a line the
+ * server would reject.
+ */
+export function mergeLines(incoming: CartLine[]): void {
+  if (incoming.length === 0) return;
+
+  const merged = [...snapshot.lines];
+
+  for (const line of incoming) {
+    const quantity = Math.trunc(line.quantity);
+    if (quantity <= 0) continue;
+
+    const index = merged.findIndex((existing) => existing.product.id === line.product.id);
+    if (index === -1) {
+      merged.push({ product: line.product, quantity: Math.min(quantity, MAX_PER_ITEM) });
+    } else {
+      merged[index] = {
+        // The incoming product snapshot wins: it was just fetched, so its price
+        // is fresher than whatever was in the basket from an earlier visit.
+        product: line.product,
+        quantity: Math.min(merged[index].quantity + quantity, MAX_PER_ITEM),
+      };
+    }
+  }
+
+  commit(merged);
+}
+
 export function clearCart(): void {
   commit([]);
 }

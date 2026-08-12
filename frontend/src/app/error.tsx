@@ -28,7 +28,7 @@ export default function GlobalError({
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface-sunken)] px-4">
       <div className="card flex max-w-sm flex-col items-center gap-3 p-8 text-center">
-        <AlertTriangle className="h-9 w-9 text-[#b91c1c]" aria-hidden />
+        <AlertTriangle className="h-9 w-9 text-[var(--color-danger-600)]" aria-hidden />
         <h1 className="text-lg font-extrabold">Something went wrong</h1>
         <p className="text-sm text-[var(--color-ink-soft)]">
           The store hit an unexpected problem. Your cart is safe.

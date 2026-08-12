@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- see ProductCard.tsx */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ImageOff, ShoppingBag, Timer, Trash2, X } from 'lucide-react';
 import { assetUrl } from '@/lib/api';
 import { useCart } from '@/lib/cart';
@@ -31,6 +31,14 @@ export default function CartDrawer({
 }: CartDrawerProps) {
   const { lines, count, setQuantity, remove, clear, subtotal } = useCart();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  /**
+   * "Empty cart" asks first.
+   *
+   * It sits directly below the checkout button and undoes every decision the
+   * customer has made so far, with no undo. One confident tap should not be
+   * able to do that — least of all for someone whose aim is not precise.
+   */
+  const [isConfirmingClear, setConfirmingClear] = useState(false);
 
   // Escape closes, and the body stops scrolling behind the panel — without the
   // second part, scrolling the drawer on a phone scrolls the product grid
@@ -69,14 +77,14 @@ export default function CartDrawer({
         type="button"
         aria-label="Close cart"
         onClick={onClose}
-        className="absolute inset-0 bg-[rgba(22,18,58,0.45)] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[rgba(4,3,8,0.72)] backdrop-blur-[3px]"
       />
 
-      <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+      <aside className="glass-strong relative flex h-full w-full max-w-md flex-col border-l border-[rgba(212,175,55,0.2)] shadow-2xl">
         <header className="flex items-center justify-between border-b border-[var(--color-line)] px-4 py-3.5">
           <div>
-            <h2 className="text-lg font-extrabold">Your cart</h2>
-            <p className="text-xs text-[var(--color-ink-faint)]">
+            <h2 className="text-xl font-extrabold">Your cart</h2>
+            <p className="text-sm text-[var(--color-ink-faint)]">
               {count} item{count === 1 ? '' : 's'}
             </p>
           </div>
@@ -85,17 +93,17 @@ export default function CartDrawer({
             type="button"
             onClick={onClose}
             aria-label="Close cart"
-            className="rounded-lg p-2 text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface-sunken)]"
+            className="btn-icon"
           >
-            <X className="h-5 w-5" aria-hidden />
+            <X className="h-6 w-6" aria-hidden />
           </button>
         </header>
 
         {count === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <ShoppingBag className="h-10 w-10 text-[var(--color-ink-faint)]" aria-hidden />
-            <p className="font-semibold">Your cart is empty</p>
-            <p className="text-sm text-[var(--color-ink-faint)]">
+            <p className="text-lg font-semibold">Your cart is empty</p>
+            <p className="text-base text-[var(--color-ink-faint)]">
               Add a few things and they will be at your door in{' '}
               {config?.promise_minutes ?? 15} minutes.
             </p>
@@ -105,8 +113,8 @@ export default function CartDrawer({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 bg-[var(--color-fresh-50)] px-4 py-2.5 text-[0.8rem] font-semibold text-[#0b6b36]">
-              <Timer className="h-4 w-4" aria-hidden />
+            <div className="flex items-center gap-2 bg-[var(--color-fresh-50)] px-4 py-3 text-base font-semibold text-[var(--color-fresh-600)]">
+              <Timer className="h-5 w-5" aria-hidden />
               Arriving in {config?.promise_minutes ?? 15} minutes
             </div>
 
@@ -116,8 +124,8 @@ export default function CartDrawer({
                 const isUnavailable = problem !== undefined;
 
                 return (
-                  <li key={line.product.id} className="flex gap-3 py-3">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-sunken)]">
+                  <li key={line.product.id} className="flex gap-3 py-4">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[var(--color-surface-sunken)]">
                       {line.product.image_url ? (
                         <img
                           src={assetUrl(line.product.image_url)}
@@ -128,42 +136,48 @@ export default function CartDrawer({
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-[var(--color-ink-faint)]">
-                          <ImageOff className="h-5 w-5" aria-hidden />
+                          <ImageOff className="h-6 w-6" aria-hidden />
                         </div>
                       )}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{line.product.name}</p>
-                      <p className="text-xs text-[var(--color-ink-faint)]">{line.product.unit}</p>
+                      {/* Wraps to two lines rather than truncating. A truncated
+                          grocery name ("Amul Taaza Toned Milk 5…") is exactly
+                          the case where the cut-off part is what tells two
+                          similar products apart. */}
+                      <p className="line-clamp-2 text-base font-semibold">{line.product.name}</p>
+                      <p className="text-sm text-[var(--color-ink-faint)]">{line.product.unit}</p>
 
                       {isUnavailable && (
-                        <p className="mt-1 flex items-center gap-1 text-[0.72rem] font-semibold text-[#b91c1c]">
-                          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-danger-600)]">
+                          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
                           {problem?.reason ?? 'No longer available'}
                         </p>
                       )}
 
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <div className="w-[5.5rem]">
+                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                        <div className="w-[8.5rem]">
                           <QuantityStepper
-                            compact
                             quantity={line.quantity}
                             label={line.product.name}
                             onChange={(next) => setQuantity(line.product, next)}
                           />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold tabular-nums">
+                        <div className="flex items-center gap-1">
+                          <span className="text-base font-bold tabular-nums">
                             {formatMoney(line.product.price * line.quantity)}
                           </span>
+                          {/* Kept alongside the stepper's bin-at-one: this is
+                              the one-tap exit for a line with six of something,
+                              which would otherwise take six taps. */}
                           <button
                             type="button"
-                            aria-label={`Remove ${line.product.name}`}
+                            aria-label={`Remove ${line.product.name} from cart`}
                             onClick={() => remove(line.product.id)}
-                            className="rounded-md p-1.5 text-[var(--color-ink-faint)] transition-colors hover:bg-[var(--color-surface-sunken)] hover:text-[#b91c1c]"
+                            className="btn-icon text-[var(--color-ink-faint)] hover:text-[var(--color-danger-600)]"
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden />
+                            <Trash2 className="h-5 w-5" aria-hidden />
                           </button>
                         </div>
                       </div>
@@ -191,46 +205,82 @@ export default function CartDrawer({
               />
               <BillRow label="Handling" value={quote?.handling_fee} />
 
-              <div className="mt-2 flex items-center justify-between border-t border-dashed border-[var(--color-line)] pt-2 text-base font-extrabold">
+              <div className="mt-2 flex items-center justify-between border-t border-dashed border-[var(--color-line)] pt-2.5 text-xl font-extrabold">
                 <span>{quote ? 'To pay' : 'Items'}</span>
                 <span className="tabular-nums">
                   {quote ? formatMoneyExact(quote.grand_total) : formatMoneyExact(subtotal)}
                 </span>
               </div>
               {!quote && (
-                <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
+                <p className="mt-1 text-sm text-[var(--color-ink-faint)]">
                   Delivery and handling are added once the store confirms your basket.
                 </p>
               )}
 
               {quote && quote.free_delivery_shortfall > 0 && (
-                <p className="mt-2 rounded-lg bg-[var(--color-brand-50)] px-3 py-2 text-[0.78rem] font-semibold text-[var(--color-brand-700)]">
+                <p className="mt-2 rounded-lg bg-[var(--color-brand-50)] px-3 py-2.5 text-sm font-semibold text-[var(--color-brand-700)]">
                   Add {formatMoney(quote.free_delivery_shortfall)} more for free delivery
                 </p>
               )}
 
               {belowMinimum && config && (
-                <p className="mt-2 rounded-lg bg-[#fff1f2] px-3 py-2 text-[0.78rem] font-semibold text-[#b91c1c]">
+                <p className="mt-2 rounded-lg bg-[var(--color-danger-50)] px-3 py-2.5 text-sm font-semibold text-[var(--color-danger-600)]">
                   Minimum order is {formatMoney(config.min_order_value)}.
                 </p>
               )}
 
+              {/* "Next: your address" rather than "Choose address": it names
+                  what happens on tap and says there is another step, so the
+                  button can never be mistaken for the one that places the
+                  order. Nothing is charged until "Place order" on the next
+                  screen. */}
               <button
                 type="button"
                 onClick={onCheckout}
                 disabled={!canCheckout}
                 className="btn-primary mt-3 w-full"
               >
-                {isQuoting ? 'Updating…' : hasProblems ? 'Fix cart to continue' : 'Choose address'}
+                {isQuoting
+                  ? 'Updating…'
+                  : hasProblems
+                    ? 'Fix cart to continue'
+                    : 'Next: your address'}
               </button>
 
-              <button
-                type="button"
-                onClick={clear}
-                className="mt-2 w-full text-center text-xs font-semibold text-[var(--color-ink-faint)] transition-colors hover:text-[#b91c1c]"
-              >
-                Empty cart
-              </button>
+              {isConfirmingClear ? (
+                <div className="mt-3 rounded-xl border-2 border-[var(--color-line)] p-3">
+                  <p className="text-base font-semibold">
+                    Remove all {count} item{count === 1 ? '' : 's'}?
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingClear(false)}
+                      className="btn-ghost flex-1"
+                    >
+                      Keep them
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clear();
+                        setConfirmingClear(false);
+                      }}
+                      className="btn-ghost flex-1 border-[#fecdd3] text-[var(--color-danger-600)]"
+                    >
+                      Yes, empty
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingClear(true)}
+                  className="mt-2 min-h-[var(--tap-min)] w-full text-center text-sm font-semibold text-[var(--color-ink-faint)] transition-colors hover:text-[var(--color-danger-600)]"
+                >
+                  Empty cart
+                </button>
+              )}
             </div>
           </>
         )}
@@ -249,13 +299,13 @@ function BillRow({
   free?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between py-0.5 text-sm text-[var(--color-ink-soft)]">
+    <div className="flex items-center justify-between py-1 text-base text-[var(--color-ink-soft)]">
       <span>{label}</span>
       {value === undefined ? (
         // Not "₹0" — a fee that has not been calculated yet is unknown, not free.
         <span className="text-[var(--color-ink-faint)]">—</span>
       ) : free ? (
-        <span className="font-bold text-[var(--color-fresh-500)]">FREE</span>
+        <span className="font-bold text-[var(--color-fresh-600)]">Free</span>
       ) : (
         <span className="tabular-nums">{formatMoney(value)}</span>
       )}

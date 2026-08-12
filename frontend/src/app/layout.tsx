@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { connection } from 'next/server';
 import { IBM_Plex_Sans, Manrope } from 'next/font/google';
+import LiquidBackdrop from '@/components/store/LiquidBackdrop';
 import './globals.css';
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Matches the header gradient so the phone's status bar blends into the app
-  // rather than sitting on a white strip above it.
-  themeColor: '#2e1065',
+  // Matches the page ground so the phone's status bar blends into the app
+  // rather than sitting on a lighter strip above it.
+  themeColor: '#08070c',
   width: 'device-width',
   initialScale: 1,
   // Deliberately NOT maximumScale: 1. Locking zoom is a common storefront
@@ -67,7 +68,12 @@ export default async function RootLayout({
       {/* No cart provider: the basket is a module-level external store (see
           lib/cart-store.ts), so it survives navigation without one — and stays
           in sync across browser tabs, which a React context could not do. */}
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {/* Fixed behind everything at -z-10, and the reason the glass panels
+            have anything to refract. Server-rendered, no JavaScript. */}
+        <LiquidBackdrop />
+        {children}
+      </body>
     </html>
   );
 }

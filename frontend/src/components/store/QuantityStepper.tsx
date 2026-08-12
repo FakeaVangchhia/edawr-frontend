@@ -1,19 +1,23 @@
 'use client';
 
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 import { MAX_PER_ITEM } from '@/lib/cart';
 
 interface QuantityStepperProps {
   quantity: number;
   onChange: (quantity: number) => void;
   label: string;
-  compact?: boolean;
   /** False when the item has sold out since it went into the basket. */
   canIncrease?: boolean;
 }
 
 /**
- * The +/- control that an ADD button turns into.
+ * The +/− control that an Add button turns into.
+ *
+ * There is deliberately no "compact" variant. Every button here is a full
+ * 44px target (see `.stepper` in globals.css) whether it sits on a product
+ * tile or a cart row: a control that shrinks in the cart is a control that
+ * gets mis-tapped in the cart, and the cart is where a mis-tap costs money.
  *
  * The whole tile does not become a link once an item is in the basket, so both
  * buttons stop click propagation — otherwise tapping "−" on a card inside a
@@ -23,27 +27,35 @@ export default function QuantityStepper({
   quantity,
   onChange,
   label,
-  compact = false,
   canIncrease = true,
 }: QuantityStepperProps) {
   const atMax = quantity >= MAX_PER_ITEM || !canIncrease;
+  // At one, "−" does not decrement — it removes the item entirely. Showing a
+  // minus sign for that is a small lie, and the surprise lands hardest on
+  // someone who taps it expecting the row to stay put. A bin icon says what
+  // will actually happen.
+  const willRemove = quantity <= 1;
 
   return (
-    <div className={`stepper ${compact ? 'text-xs' : 'text-sm'}`}>
+    <div className="stepper">
       <button
         type="button"
-        aria-label={`Remove one ${label}`}
+        aria-label={willRemove ? `Remove ${label} from cart` : `Remove one ${label}`}
         onClick={(event) => {
           event.stopPropagation();
           onChange(quantity - 1);
         }}
       >
-        <Minus className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+        {willRemove ? (
+          <Trash2 className="h-5 w-5" aria-hidden />
+        ) : (
+          <Minus className="h-5 w-5" aria-hidden />
+        )}
       </button>
 
       {/* aria-live so a screen reader announces the new count after a tap,
           rather than leaving the change silent. */}
-      <span aria-live="polite" className="min-w-6 text-center tabular-nums">
+      <span aria-live="polite" className="min-w-7 text-center tabular-nums">
         {quantity}
       </span>
 
@@ -62,7 +74,7 @@ export default function QuantityStepper({
           onChange(quantity + 1);
         }}
       >
-        <Plus className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+        <Plus className="h-5 w-5" aria-hidden />
       </button>
     </div>
   );

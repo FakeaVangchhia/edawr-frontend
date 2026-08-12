@@ -22,6 +22,7 @@ import CartDrawer from './store/CartDrawer';
 import CategoryRail from './store/CategoryRail';
 import CheckoutSheet from './store/CheckoutSheet';
 import ProductCard from './store/ProductCard';
+import RecentOrders from './store/RecentOrders';
 import StoreHeader from './store/StoreHeader';
 
 /** Long enough that typing "tomato" is one request, short enough to feel live. */
@@ -212,8 +213,14 @@ export default function Storefront() {
       <CategoryRail categories={categories} selected={category} onSelect={changeCategory} />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 pb-28 sm:px-6">
+        {/* Above the grid, and only for someone who has ordered here before:
+            for them the whole catalogue is usually the long way round. Renders
+            nothing when there is no history, so a first-time visitor sees the
+            store exactly as before. */}
+        {!debouncedSearch && category === 'All' && <RecentOrders />}
+
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h1 className="text-lg font-extrabold">
+          <h1 className="text-xl font-extrabold">
             {debouncedSearch
               ? `Results for “${debouncedSearch}”`
               : category === 'All'
@@ -228,7 +235,7 @@ export default function Storefront() {
           ) : (
             !isFirstLoad &&
             products.length > 0 && (
-              <span className="text-xs text-[var(--color-ink-faint)]">
+              <span className="text-sm text-[var(--color-ink-faint)]">
                 {/* "60+" rather than "60" when the page is full: the count is
                     what was fetched, not what exists, and stating it flatly
                     would be a quiet lie about the size of the aisle. */}
@@ -241,7 +248,7 @@ export default function Storefront() {
 
         {loadError && (
           <div className="card p-6 text-center">
-            <p className="font-semibold text-[#b91c1c]">{loadError}</p>
+            <p className="font-semibold text-[var(--color-danger-600)]">{loadError}</p>
             <button
               type="button"
               onClick={() => setReloadToken((token) => token + 1)}
@@ -266,9 +273,9 @@ export default function Storefront() {
 
         {showEmptyState && (
           <div className="card flex flex-col items-center gap-2 px-6 py-14 text-center">
-            <PackageSearch className="h-9 w-9 text-[var(--color-ink-faint)]" aria-hidden />
-            <p className="font-semibold">Nothing here yet</p>
-            <p className="max-w-sm text-sm text-[var(--color-ink-faint)]">
+            <PackageSearch className="h-10 w-10 text-[var(--color-ink-faint)]" aria-hidden />
+            <p className="text-lg font-semibold">Nothing here yet</p>
+            <p className="max-w-sm text-base text-[var(--color-ink-faint)]">
               {debouncedSearch
                 ? `We could not find anything matching “${debouncedSearch}”.`
                 : 'This aisle is empty right now. Try another category.'}
@@ -320,17 +327,17 @@ export default function Storefront() {
           <button
             type="button"
             onClick={openCart}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[var(--color-brand-700)] px-4 py-3 text-white shadow-[0_16px_40px_-16px_rgba(46,16,101,0.8)] transition-colors hover:bg-[var(--color-brand-900)]"
+            className="mx-auto flex min-h-[3.5rem] w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#f4dc93] via-[#d4af37] to-[#b8912a] px-4 py-3 text-[#12100a] shadow-[0_18px_45px_-18px_rgba(212,175,55,0.9)] transition-[filter] hover:brightness-110"
           >
-            <span className="flex items-center gap-2 text-sm font-bold">
-              <ShoppingCart className="h-4 w-4" aria-hidden />
+            <span className="flex items-center gap-2 text-base font-bold">
+              <ShoppingCart className="h-5 w-5" aria-hidden />
               {cart.count} item{cart.count === 1 ? '' : 's'}
-              <span className="text-white/60">·</span>
+              <span className="text-[#12100a]/45">·</span>
               <span className="tabular-nums">
                 {formatMoney(quote?.grand_total ?? cart.subtotal)}
               </span>
             </span>
-            <span className="text-sm font-extrabold">View cart →</span>
+            <span className="text-base font-extrabold">View cart →</span>
           </button>
         </div>
       )}

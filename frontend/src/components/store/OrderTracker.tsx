@@ -133,7 +133,7 @@ export default function OrderTracker({ token }: { token: string }) {
     return (
       <Shell>
         <div className="card flex flex-col items-center gap-3 p-10 text-center">
-          <AlertTriangle className="h-9 w-9 text-[#b91c1c]" aria-hidden />
+          <AlertTriangle className="h-9 w-9 text-[var(--color-danger-600)]" aria-hidden />
           <p className="font-semibold">{error}</p>
           <Link href="/" className="btn-primary mt-1">
             Back to store
@@ -153,9 +153,9 @@ export default function OrderTracker({ token }: { token: string }) {
     <Shell>
       {/* --- the promise, or how it ended --------------------------------- */}
       <section
-        className={`rounded-2xl p-5 text-white ${isCancelled ? 'bg-[#7f1d1d]' : 'brand-gradient'}`}
+        className={`rounded-2xl p-5 text-[var(--color-ink)] ${isCancelled ? 'bg-[#3a1417] border border-[rgba(252,165,165,0.25)]' : 'brand-gradient border border-[rgba(212,175,55,0.22)]'}`}
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-faint)]">
           Order #{order.id}
         </p>
 
@@ -165,7 +165,7 @@ export default function OrderTracker({ token }: { token: string }) {
               <XCircle className="h-6 w-6" aria-hidden />
               Order cancelled
             </h1>
-            <p className="mt-1 text-sm text-white/75">
+            <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
               {order.cancellation_reason || 'This order was cancelled.'}
             </p>
           </>
@@ -175,19 +175,19 @@ export default function OrderTracker({ token }: { token: string }) {
               <Check className="h-6 w-6" aria-hidden />
               Delivered
             </h1>
-            <p className="mt-1 text-sm text-white/75">
+            <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
               Delivered at {formatClockTime(order.delivered_at)}. Thanks for shopping with us.
             </p>
           </>
         ) : (
           <>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-black">
-              <Timer className="h-6 w-6 text-[#ffd166]" aria-hidden />
+              <Timer className="h-6 w-6 text-[var(--color-brand-500)]" aria-hidden />
               {order.is_late
                 ? 'Arriving shortly'
                 : `Arriving in ${formatCountdown(order.minutes_remaining)}`}
             </h1>
-            <p className="mt-1 text-sm text-white/75">
+            <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
               {order.is_late
                 ? 'Running a little behind — your order is on its way.'
                 : `Promised within ${order.promised_minutes} minutes of ordering.`}
@@ -212,8 +212,8 @@ export default function OrderTracker({ token }: { token: string }) {
                     <span
                       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
                         isDone || isCurrent
-                          ? 'border-[var(--color-brand-600)] bg-[var(--color-brand-600)] text-white'
-                          : 'border-[var(--color-line)] bg-white text-[var(--color-ink-faint)]'
+                          ? 'border-[var(--color-brand-500)] bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]'
+                          : 'border-[var(--color-line)] bg-[rgba(8,7,12,0.6)] text-[var(--color-ink-faint)]'
                       }`}
                     >
                       <Icon className="h-4 w-4" aria-hidden />
@@ -329,7 +329,7 @@ export default function OrderTracker({ token }: { token: string }) {
       </section>
 
       {error && order && (
-        <p role="alert" className="rounded-lg bg-[#fff1f2] px-3 py-2.5 text-sm font-semibold text-[#b91c1c]">
+        <p role="alert" className="rounded-lg bg-[var(--color-danger-50)] px-3 py-2.5 text-sm font-semibold text-[var(--color-danger-600)]">
           {error}
         </p>
       )}
@@ -343,7 +343,7 @@ export default function OrderTracker({ token }: { token: string }) {
             type="button"
             onClick={cancel}
             disabled={isCancelling}
-            className="btn-ghost flex-1 justify-center border-[#fecdd3] text-[#b91c1c] hover:border-[#fda4af] hover:text-[#b91c1c]"
+            className="btn-ghost flex-1 justify-center border-[rgba(252,165,165,0.4)] text-[var(--color-danger-600)] hover:border-[rgba(252,165,165,0.7)] hover:text-[var(--color-danger-600)]"
           >
             {isCancelling ? 'Cancelling…' : 'Cancel order'}
           </button>

@@ -69,6 +69,8 @@ export default function CheckoutSheet({
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
 
   // Moving focus is a DOM side effect, not a state update — this is exactly
   // what effects are for. The form starts empty because the component is
@@ -95,16 +97,35 @@ export default function CheckoutSheet({
     const errors: FieldErrors = {};
 
     if (details.customer_name.trim().length < 2) {
-      errors.customer_name = 'Who should the rider ask for?';
+      errors.customer_name = 'Please enter your name so the rider can ask for you.';
     }
     if (!isValidIndianMobile(details.customer_phone)) {
-      errors.customer_phone = 'Enter a valid 10-digit mobile number.';
+      errors.customer_phone = 'Please enter a 10-digit mobile number, like 98123 45678.';
     }
     if (details.customer_address.trim().length < 8) {
-      errors.customer_address = 'Add a full address a rider could find.';
+      errors.customer_address = 'Please add a full address the rider can find.';
     }
 
     setFieldErrors(errors);
+
+    /**
+     * Send focus to the first field that needs fixing.
+     *
+     * Without this, tapping "Place order" on a form whose only problem has
+     * scrolled off the top does nothing you can see — the message is rendered
+     * somewhere above the fold and the button just sits there. Focusing also
+     * scrolls the field into view and makes a screen reader announce it, so
+     * the same fix serves both.
+     */
+    const firstInvalid = errors.customer_name
+      ? nameRef.current
+      : errors.customer_phone
+        ? phoneRef.current
+        : errors.customer_address
+          ? addressRef.current
+          : null;
+    firstInvalid?.focus();
+
     return Object.keys(errors).length === 0;
   };
 
@@ -160,20 +181,15 @@ export default function CheckoutSheet({
         type="button"
         aria-label="Back to cart"
         onClick={onClose}
-        className="absolute inset-0 bg-[rgba(22,18,58,0.45)] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[rgba(4,3,8,0.72)] backdrop-blur-[3px]"
       />
 
-      <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+      <aside className="glass-strong relative flex h-full w-full max-w-md flex-col border-l border-[rgba(212,175,55,0.2)] shadow-2xl">
         <header className="flex items-center gap-2 border-b border-[var(--color-line)] px-4 py-3.5">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Back to cart"
-            className="rounded-lg p-2 text-[var(--color-ink-soft)] transition-colors hover:bg-[var(--color-surface-sunken)]"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden />
+          <button type="button" onClick={onClose} aria-label="Back to cart" className="btn-icon">
+            <ArrowLeft className="h-6 w-6" aria-hidden />
           </button>
-          <h2 className="text-lg font-extrabold">Delivery details</h2>
+          <h2 className="text-xl font-extrabold">Where should we deliver?</h2>
         </header>
 
         <form onSubmit={submit} className="flex flex-1 flex-col overflow-y-auto">
@@ -199,6 +215,7 @@ export default function CheckoutSheet({
               error={fieldErrors.customer_phone}
               input={
                 <input
+                  ref={phoneRef}
                   className={`field ${fieldErrors.customer_phone ? 'field-invalid' : ''}`}
                   value={details.customer_phone}
                   onChange={(event) => update('customer_phone', event.target.value)}
@@ -214,7 +231,8 @@ export default function CheckoutSheet({
               error={fieldErrors.customer_address}
               input={
                 <textarea
-                  className={`field min-h-20 resize-y ${fieldErrors.customer_address ? 'field-invalid' : ''}`}
+                  ref={addressRef}
+                  className={`field min-h-24 resize-y ${fieldErrors.customer_address ? 'field-invalid' : ''}`}
                   value={details.customer_address}
                   onChange={(event) => update('customer_address', event.target.value)}
                   autoComplete="street-address"
@@ -225,7 +243,8 @@ export default function CheckoutSheet({
 
             <Field
               label="Landmark"
-              hint="Optional, but it makes a 10-minute delivery far more likely."
+              optional
+              hint="A nearby shop or hall makes a 15-minute delivery far more likely."
               input={
                 <input
                   className="field"
@@ -238,6 +257,7 @@ export default function CheckoutSheet({
 
             <Field
               label="Note for the rider"
+              optional
               input={
                 <input
                   className="field"
@@ -248,11 +268,11 @@ export default function CheckoutSheet({
               }
             />
 
-            <div className="card flex items-center gap-3 bg-[var(--color-surface-sunken)] p-3">
-              <Wallet className="h-5 w-5 shrink-0 text-[var(--color-brand-700)]" aria-hidden />
-              <div className="text-sm">
-                <p className="font-semibold">Cash on delivery</p>
-                <p className="text-xs text-[var(--color-ink-faint)]">
+            <div className="card flex items-center gap-3 bg-[var(--color-surface-sunken)] p-3.5">
+              <Wallet className="h-6 w-6 shrink-0 text-[var(--color-brand-700)]" aria-hidden />
+              <div>
+                <p className="text-base font-semibold">Pay cash when it arrives</p>
+                <p className="text-sm text-[var(--color-ink-faint)]">
                   Online payment is not available yet.
                 </p>
               </div>
@@ -261,29 +281,32 @@ export default function CheckoutSheet({
             {formError && (
               <p
                 role="alert"
-                className="flex items-start gap-2 rounded-lg bg-[#fff1f2] px-3 py-2.5 text-sm font-semibold text-[#b91c1c]"
+                className="flex items-start gap-2 rounded-lg bg-[var(--color-danger-50)] px-3 py-3 text-base font-semibold text-[var(--color-danger-600)]"
               >
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
                 {formError}
               </p>
             )}
           </div>
 
-          <div className="mt-auto border-t border-[var(--color-line)] px-4 py-3">
-            <div className="mb-2.5 flex items-center justify-between text-base font-extrabold">
+          <div className="mt-auto border-t border-[var(--color-line)] px-4 py-3.5">
+            <div className="mb-3 flex items-center justify-between text-xl font-extrabold">
               <span>To pay</span>
               <span className="tabular-nums">{formatMoneyExact(quote?.grand_total ?? 0)}</span>
             </div>
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
                   Placing order…
                 </>
               ) : (
                 'Place order'
               )}
             </button>
+            <p className="mt-2 text-center text-sm text-[var(--color-ink-faint)]">
+              No payment now — pay the rider in cash.
+            </p>
           </div>
         </form>
       </aside>
@@ -295,23 +318,38 @@ function Field({
   label,
   hint,
   error,
+  optional,
   input,
 }: {
   label: string;
   hint?: string;
   error?: string;
+  /** Marked in the label, not only in the hint — see below. */
+  optional?: boolean;
   input: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[0.8rem] font-bold text-[var(--color-ink-soft)]">
+      <span className="mb-1.5 flex items-baseline gap-2 text-base font-bold text-[var(--color-ink)]">
         {label}
+        {/* Which fields are skippable is stated on the label itself. Three of
+            these five are optional, and a form that looks like five required
+            questions is a form people abandon — or worse, one they slow down
+            over, on a store whose whole promise is fifteen minutes. */}
+        {optional && (
+          <span className="text-sm font-medium text-[var(--color-ink-faint)]">optional</span>
+        )}
       </span>
       {input}
       {error ? (
-        <span className="mt-1 block text-xs font-semibold text-[#b91c1c]">{error}</span>
+        <span
+          role="alert"
+          className="mt-1.5 block text-sm font-semibold text-[var(--color-danger-600)]"
+        >
+          {error}
+        </span>
       ) : hint ? (
-        <span className="mt-1 block text-xs text-[var(--color-ink-faint)]">{hint}</span>
+        <span className="mt-1.5 block text-sm text-[var(--color-ink-faint)]">{hint}</span>
       ) : null}
     </label>
   );

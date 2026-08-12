@@ -194,10 +194,10 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-sunken)]">
-      <header className="sticky top-0 z-10 border-b border-[var(--color-line)] bg-white">
+      <header className="sticky top-0 z-10 glass-strong border-b border-[rgba(212,175,55,0.18)]">
         <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-brand-700)] text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]">
               <Warehouse className="h-5 w-5" aria-hidden />
             </div>
             <div className="min-w-0">
@@ -215,8 +215,8 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition-colors ${
                   activeTab === tab
-                    ? 'bg-[var(--color-brand-700)] text-white'
-                    : 'text-[var(--color-ink-soft)] hover:bg-[var(--color-surface-sunken)]'
+                    ? 'bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]'
+                    : 'text-[var(--color-ink-soft)] hover:bg-[rgba(255,250,235,0.06)]'
                 }`}
               >
                 {tab}
@@ -239,7 +239,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
                 <p className="text-sm text-[var(--color-ink-faint)]">
                   {orders.length} open order{orders.length === 1 ? '' : 's'}
                   {lateCount > 0 && (
-                    <span className="ml-2 font-semibold text-[#b91c1c]">
+                    <span className="ml-2 font-semibold text-[var(--color-danger-600)]">
                       · {lateCount} past its promise
                     </span>
                   )}
@@ -247,7 +247,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm font-semibold">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,250,235,0.05)] px-3 py-2 text-sm font-semibold">
                   <input
                     type="checkbox"
                     checked={showStalledOnly}
@@ -281,7 +281,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
             {error && (
               <p
                 role="alert"
-                className="flex items-start gap-2 rounded-lg bg-[#fff1f2] px-3 py-2.5 text-sm font-semibold text-[#b91c1c]"
+                className="flex items-start gap-2 rounded-lg bg-[var(--color-danger-50)] px-3 py-2.5 text-sm font-semibold text-[var(--color-danger-600)]"
               >
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 {error}
@@ -303,7 +303,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
                       <h3 className="flex items-center gap-2 px-1 text-sm font-bold">
                         <Icon className="h-4 w-4" aria-hidden />
                         {column.label}
-                        <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-faint)]">
+                        <span className="ml-auto rounded-full bg-[rgba(255,250,235,0.08)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-faint)]">
                           {bucket.length}
                         </span>
                       </h3>
@@ -365,7 +365,7 @@ function OrderCard({
 
       <div
         className={`mt-1.5 flex items-center gap-1 text-xs font-bold ${
-          order.is_late ? 'text-[#b91c1c]' : 'text-[var(--color-ink-soft)]'
+          order.is_late ? 'text-[var(--color-danger-600)]' : 'text-[var(--color-ink-soft)]'
         }`}
       >
         <Timer className="h-3.5 w-3.5" aria-hidden />
@@ -453,7 +453,7 @@ function OrderCard({
             type="button"
             disabled={busy}
             onClick={() => onAdvance(order.id, 'Cancelled')}
-            className="btn-ghost w-full justify-center gap-1.5 py-1.5 text-xs text-[#b91c1c] hover:text-[#b91c1c]"
+            className="btn-ghost w-full justify-center gap-1.5 py-1.5 text-xs text-[var(--color-danger-600)] hover:text-[var(--color-danger-600)]"
           >
             <XCircle className="h-3.5 w-3.5" aria-hidden />
             Cancel &amp; restock

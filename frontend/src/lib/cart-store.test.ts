@@ -226,4 +226,97 @@ describe('cart store', () => {
 
     expect(store.getSnapshot().lines).toEqual([]);
   });
+
+  /**
+   * `mergeLines` is what "Order again" commits. It runs against a basket the
+   * customer may already have started, so the merge rules are the part worth
+   * pinning down.
+   */
+  describe('mergeLines', () => {
+    it('adds several products in a single notification', async () => {
+      const store = await freshStore();
+      let notifications = 0;
+      store.subscribe(() => {
+        notifications += 1;
+      });
+      // Subscribing is what triggers hydration, and hydration itself emits.
+      // Only what `mergeLines` causes is being counted here.
+      notifications = 0;
+
+      store.mergeLines([
+        { product: product({ id: 1 }), quantity: 2 },
+        { product: product({ id: 2 }), quantity: 1 },
+        { product: product({ id: 3 }), quantity: 4 },
+      ]);
+
+      expect(store.getSnapshot().lines).toHaveLength(3);
+      // One commit, not one per item — three products must not re-render the
+      // grid three times or briefly show a half-filled basket.
+      expect(notifications).toBe(1);
+    });
+
+    it('adds to the quantity of something already in the basket', async () => {
+      const store = await freshStore();
+      activate(store);
+      store.setQuantity(product({ id: 1 }), 3);
+
+      store.mergeLines([{ product: product({ id: 1 }), quantity: 2 }]);
+
+      expect(store.getSnapshot().lines).toEqual([
+        { product: product({ id: 1 }), quantity: 5 },
+      ]);
+    });
+
+    it('clamps a merged quantity to the per-item maximum', async () => {
+      const store = await freshStore();
+      activate(store);
+      store.setQuantity(product({ id: 1 }), store.MAX_PER_ITEM);
+
+      store.mergeLines([{ product: product({ id: 1 }), quantity: 5 }]);
+
+      // The server rejects anything above its own limit, so the merge must not
+      // be able to build a basket that fails at checkout.
+      expect(store.getSnapshot().lines[0].quantity).toBe(store.MAX_PER_ITEM);
+    });
+
+    it('takes the incoming price for a product already in the basket', async () => {
+      const store = await freshStore();
+      activate(store);
+      store.setQuantity(product({ id: 1, price: 62 }), 1);
+
+      store.mergeLines([{ product: product({ id: 1, price: 70 }), quantity: 1 }]);
+
+      // The incoming snapshot was just fetched; the basket's was not.
+      expect(store.getSnapshot().lines[0].product.price).toBe(70);
+    });
+
+    it('ignores non-positive quantities rather than writing a dead line', async () => {
+      const store = await freshStore();
+      activate(store);
+
+      store.mergeLines([
+        { product: product({ id: 1 }), quantity: 0 },
+        { product: product({ id: 2 }), quantity: -3 },
+        { product: product({ id: 3 }), quantity: 1 },
+      ]);
+
+      expect(store.getSnapshot().lines).toEqual([
+        { product: product({ id: 3 }), quantity: 1 },
+      ]);
+    });
+
+    it('does nothing at all when handed an empty list', async () => {
+      const store = await freshStore();
+      let notifications = 0;
+      store.subscribe(() => {
+        notifications += 1;
+      });
+      notifications = 0;
+
+      store.mergeLines([]);
+
+      expect(notifications).toBe(0);
+      expect(store.getSnapshot().lines).toEqual([]);
+    });
+  });
 });

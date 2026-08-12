@@ -6,6 +6,7 @@ import {
   clearCart,
   getServerSnapshot,
   getSnapshot,
+  mergeLines,
   removeLine,
   setQuantity,
   subscribe,
@@ -24,6 +25,8 @@ interface UseCart {
   isReady: boolean;
   quantityOf: (productId: number) => number;
   add: (product: StoreProduct) => void;
+  /** Add many at once, for "Order again". Quantities add to what is there. */
+  mergeLines: (lines: CartLine[]) => void;
   setQuantity: (product: StoreProduct, quantity: number) => void;
   remove: (productId: number) => void;
   clear: () => void;
@@ -49,6 +52,7 @@ export function useCart(): UseCart {
       quantityOf: (productId: number) =>
         lines.find((line) => line.product.id === productId)?.quantity ?? 0,
       add: addOne,
+      mergeLines,
       setQuantity,
       remove: removeLine,
       clear: clearCart,
