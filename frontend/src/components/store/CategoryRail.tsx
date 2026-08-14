@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /* eslint-disable @next/next/no-img-element -- see ProductCard.tsx */
 
@@ -61,9 +61,9 @@ export default function CategoryRail({ categories, selected, onSelect }: Categor
   return (
     <nav
       aria-label="Product categories"
-      className="glass-strong border-b border-[rgba(212,175,55,0.14)]"
+      className="bg-[var(--color-surface)]"
     >
-      <ul className="no-scrollbar mx-auto flex max-w-7xl gap-2 overflow-x-auto px-3 py-3 sm:px-6">
+      <ul className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 py-3 sm:gap-2 sm:px-5 lg:px-7">
         {tiles.map((category) => {
           const isSelected = selected === category.name;
           return (
@@ -72,16 +72,23 @@ export default function CategoryRail({ categories, selected, onSelect }: Categor
                 type="button"
                 onClick={() => onSelect(category.name)}
                 aria-current={isSelected ? 'true' : undefined}
-                /* Selection is marked by a filled background and a 2px border,
-                   not by colour alone — the same tile has to read as "chosen"
-                   to someone who cannot separate purple text from grey. */
-                className={`flex w-[5.5rem] flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 transition-colors ${
+                /* Selection is a filled tile plus a bolder, darker label — two
+                   signals, neither of them an outline. The same tile has to
+                   read as "chosen" to someone who cannot separate bronze text
+                   from grey, which the fill handles on its own. */
+                className={`flex w-[4.75rem] flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 transition-colors sm:w-[5.5rem] sm:px-1.5 ${
                   isSelected
-                    ? 'border-[var(--color-brand-500)] bg-[rgba(212,175,55,0.14)] shadow-[0_8px_24px_-12px_rgba(212,175,55,0.8)]'
-                    : 'border-transparent hover:bg-[rgba(255,250,235,0.05)]'
+                    ? 'bg-[var(--color-brand-50)]'
+                    : 'hover:bg-[var(--color-surface-sunken)]'
                 }`}
               >
-                <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-[rgba(8,7,12,0.55)] text-2xl">
+                <span
+                  className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl text-2xl transition-colors sm:h-14 sm:w-14 ${
+                    isSelected
+                      ? 'bg-[var(--color-brand-200)]'
+                      : 'bg-[var(--color-surface-inset)]'
+                  }`}
+                >
                   {category.image_url ? (
                     <img
                       src={assetUrl(category.image_url)}
@@ -95,8 +102,10 @@ export default function CategoryRail({ categories, selected, onSelect }: Categor
                   )}
                 </span>
                 <span
-                  className={`line-clamp-2 text-center text-xs font-semibold leading-tight ${
-                    isSelected ? 'text-[var(--color-brand-700)]' : 'text-[var(--color-ink-soft)]'
+                  className={`line-clamp-2 text-center text-xs leading-tight ${
+                    isSelected
+                      ? 'font-extrabold text-[var(--color-brand-700)]'
+                      : 'font-semibold text-[var(--color-ink-soft)]'
                   }`}
                 >
                   {category.name}

@@ -21,12 +21,30 @@ export const metadata: Metadata = {
   description:
     'Fresh groceries, snacks and daily essentials delivered across Aizawl in 15 minutes.',
   applicationName: 'eDawr',
+  // Without a base, Next emits relative Open Graph URLs and warns at build.
+  // A share card with a relative image URL renders as a blank card.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  manifest: '/manifest.webmanifest',
+  // `src/app/favicon.ico` is picked up by Next's file convention and covers the
+  // legacy path; this adds the scalable one, which is what a modern tab and the
+  // manifest both prefer. Declared explicitly rather than as `src/app/icon.svg`
+  // so the manifest can point at the same stable URL.
+  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
+  openGraph: {
+    title: 'eDawr · Groceries in 15 minutes',
+    description:
+      'Fresh groceries, snacks and daily essentials delivered across Aizawl in 15 minutes.',
+    siteName: 'eDawr',
+    type: 'website',
+  },
 };
 
 export const viewport: Viewport = {
   // Matches the page ground so the phone's status bar blends into the app
-  // rather than sitting on a lighter strip above it.
-  themeColor: '#08070c',
+  // rather than sitting on a darker strip above it. Must stay in step with
+  // `background_color` in public/manifest.webmanifest — a manifest still
+  // naming the old dark ground gives a light app a dark splash screen.
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   // Deliberately NOT maximumScale: 1. Locking zoom is a common storefront
@@ -69,8 +87,15 @@ export default async function RootLayout({
           lib/cart-store.ts), so it survives navigation without one — and stays
           in sync across browser tabs, which a React context could not do. */}
       <body className="min-h-full">
-        {/* Fixed behind everything at -z-10, and the reason the glass panels
-            have anything to refract. Server-rendered, no JavaScript. */}
+        {/* First tab stop on every page. The store header has five controls
+            before the first product, so without this a keyboard or switch user
+            walks the whole of it on each navigation. Off-screen until focused,
+            so it costs a pointer user nothing. */}
+        <a href="#main" className="skip-link">
+          Skip to products
+        </a>
+        {/* The page ground, fixed behind everything at -z-10. Server-rendered,
+            no JavaScript. */}
         <LiquidBackdrop />
         {children}
       </body>

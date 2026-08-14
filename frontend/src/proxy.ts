@@ -45,9 +45,11 @@ export function proxy(request: NextRequest) {
 
     // 'unsafe-inline' for styles, knowingly. Tailwind v4 and next/font both
     // inject inline <style> blocks during hydration, and nonce-ing every one of
-    // them is fragile across framework upgrades. Inline *styles* cannot
-    // exfiltrate data or execute code the way inline scripts can, so this is
-    // the weakest link in the policy by some distance and still not a hole.
+    // them is fragile across framework upgrades. The application itself ships
+    // no inline <style> — the one that existed, in LiquidBackdrop, went with
+    // the dark theme. Inline *styles* cannot exfiltrate data or execute code
+    // the way inline scripts can, so this is the weakest link in the policy by
+    // some distance and still not a hole.
     "style-src 'self' 'unsafe-inline'",
 
     // next/font self-hosts its files, so no external font origin is needed.
@@ -84,13 +86,18 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Skip Next's own static output and the favicon. Those are immutable files
-   * served straight from disk; running this on each of them costs a function
-   * invocation and buys nothing, and a nonce on a cached asset is meaningless.
+   * Skip Next's own static output and the icon/manifest assets. Those are
+   * immutable files served straight from disk; running this on each of them
+   * costs a function invocation and buys nothing, and a nonce on a cached asset
+   * is meaningless.
+   *
+   * `manifest-src` is deliberately absent from the policy above — it falls back
+   * to `default-src 'self'`, which is already correct.
    */
   matcher: [
     {
-      source: '/((?!_next/static|_next/image|favicon.ico).*)',
+      source:
+        '/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

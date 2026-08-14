@@ -3,8 +3,8 @@ import { getAdminAccessToken } from './auth';
 /**
  * The single place the backend URL appears.
  *
- * Everything that talks to Django goes through `apiUrl()` (public) or
- * `authFetch()` (attaches the admin bearer token), so repointing the app at a
+ * Everything that talks to Django goes through `request()` (public) or
+ * `authRequest()` (attaches the admin bearer token), so repointing the app at a
  * different backend is a one-variable change. Never hardcode a host in a
  * component.
  */
@@ -121,7 +121,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return payload as T;
 }
 
-/** `request`, with the admin bearer token attached. */
+/**
+ * `request`, with the admin bearer token attached. The only way the console
+ * talks to the backend.
+ *
+ * There used to be an `authFetch` beside this that returned the raw `Response`,
+ * kept because the admin components read `response.ok` themselves. It is gone,
+ * and deliberately so: `fetch` does not reject on 4xx, so every caller that
+ * forgot the check passed `{"detail": "..."}` into `setState` and then threw
+ * inside a `.map()` during render — which blanked the whole console, logout
+ * button included. Leaving the function there was leaving the trap.
+ */
 export async function authRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getAdminAccessToken();
   const headers = new Headers(options.headers);
@@ -130,16 +140,3 @@ export async function authRequest<T>(path: string, options: RequestOptions = {})
   }
   return request<T>(path, { ...options, headers });
 }
-
-/**
- * The raw-Response version, kept because the admin components read
- * `response.ok` directly. New code should prefer `authRequest`.
- */
-export const authFetch = (path: string, init: RequestInit = {}) => {
-  const token = getAdminAccessToken();
-  const headers = new Headers(init.headers || {});
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  return fetch(apiUrl(path), { ...init, headers });
-};

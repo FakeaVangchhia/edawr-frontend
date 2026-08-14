@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -13,11 +13,13 @@ import {
 } from '@/lib/store-api';
 import type {
   BasketQuote,
+  DeliveryType,
   StoreCategory,
   StoreConfig,
   StoreProduct,
   UnavailableItem,
 } from '@/types';
+import { DEFAULT_DELIVERY_TYPE, quoteSignature as buildQuoteSignature } from '@/lib/delivery';
 import CartDrawer from './store/CartDrawer';
 import CategoryRail from './store/CategoryRail';
 import CheckoutSheet from './store/CheckoutSheet';
@@ -44,6 +46,19 @@ export default function Storefront() {
 
   const [config, setConfig] = useState<StoreConfig | null>(null);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
+
+  /**
+   * Which delivery speed the customer is buying.
+   *
+   * Seeded from the module constant rather than synced from
+   * `config.default_delivery_type` in an effect: that would be a synchronous
+   * setState inside an effect (an error under `react-hooks/set-state-in-effect`,
+   * and the whole reason the catalogue below is tagged rather than flagged), and
+   * it would change the tier under a customer who had already chosen one. Both
+   * defaults are `instant`; if they ever diverge the server still decides at
+   * checkout.
+   */
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(DEFAULT_DELIVERY_TYPE);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -81,6 +96,7 @@ export default function Storefront() {
   const [quoteResult, setQuoteResult] = useState<{
     signature: string;
     quote: BasketQuote | null;
+    error: string;
   } | null>(null);
   /** Bumped to force a re-quote when the basket itself has not changed. */
   const [quoteReloadToken, setQuoteReloadToken] = useState(0);
@@ -161,9 +177,26 @@ export default function Storefront() {
   const isStale = !isFirstLoad && catalogue.query !== query;
 
   // --- the bill, always from the server ---------------------------------
+  /**
+   * Two signatures, and they are not interchangeable.
+   *
+   * `lineSignature` is what is IN the basket. `quoteSignature` is what the
+   * basket was PRICED at, which includes the delivery tier — switching speed
+   * changes the bill without changing a single line, so a quote keyed on the
+   * lines alone would leave the instant price sitting under a slow selection.
+   *
+   * `checkoutBlockers` below stays tagged with `lineSignature` on purpose. A
+   * 409 says "this item ran out", and that does not stop being true because the
+   * customer picked a different delivery speed; re-tagging it with the tier
+   * would clear exactly the rows the drawer needs to keep marked.
+   */
   const lineSignature = useMemo(
     () => cart.lines.map((line) => `${line.product.id}:${line.quantity}`).join(','),
     [cart.lines],
+  );
+  const quoteSignature = useMemo(
+    () => buildQuoteSignature(cart.lines, deliveryType),
+    [cart.lines, deliveryType],
   );
 
   useEffect(() => {
@@ -173,22 +206,54 @@ export default function Storefront() {
 
     // Aborting on change is what drops a response that arrives after the
     // basket was edited again — without it the drawer can show the total for a
-    // cart the customer has already changed.
-    quoteBasket(cart.lines, controller.signal)
-      .then((result) => setQuoteResult({ signature: lineSignature, quote: result }))
-      .catch(() => {
-        // Leave the previous quote on screen. Checkout re-prices server-side
-        // anyway, so a failed quote can never let a wrong total be paid.
+    // cart the customer has already changed. It covers the tier the same way:
+    // a fast instant → slow → instant tap aborts the middle request rather than
+    // racing it.
+    quoteBasket(cart.lines, deliveryType, controller.signal)
+      .then((result) =>
+        setQuoteResult({ signature: quoteSignature, quote: result, error: '' }),
+      )
+      .catch((error: unknown) => {
+        // An abort is the basket being edited again, not a failure — recording
+        // it would show the customer an error they caused by typing.
+        if (controller.signal.aborted) return;
+        // The failure has to be *recorded against this signature*, not
+        // swallowed. `isQuoting` is derived from the signature matching, so
+        // leaving the old one in place left the drawer saying "Updating…"
+        // forever, with the checkout button disabled and no way out.
+        //
+        // `quote: null` rather than keeping the last one. The previous quote
+        // priced a *different basket*, so showing it under this one would put a
+        // total on screen that the customer will not be charged — and worse,
+        // `canCheckout` would go true and let them proceed on it. Dropping it
+        // falls back to the drawer's existing no-quote state, which already
+        // shows the fee rows as "—" and labels the figure "Items" instead of
+        // "To pay" precisely so it cannot be read as a bill.
+        setQuoteResult({
+          signature: quoteSignature,
+          quote: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Could not price your basket right now.',
+        });
       });
 
     return () => controller.abort();
-    // `cart.lines` is intentionally not a dependency: `lineSignature` is its
-    // value-identity, and depending on the array would re-quote on every render.
+    // `cart.lines` is intentionally not a dependency: `quoteSignature` is its
+    // value-identity plus the tier, and depending on the array would re-quote on
+    // every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineSignature, cart.isReady, quoteReloadToken]);
+  }, [quoteSignature, cart.isReady, quoteReloadToken]);
 
   const quote = cart.count > 0 ? (quoteResult?.quote ?? null) : null;
-  const isQuoting = cart.count > 0 && quoteResult?.signature !== lineSignature;
+  const isQuoting = cart.count > 0 && quoteResult?.signature !== quoteSignature;
+  // Same shape as `loadError` above: only surface the error if it belongs to
+  // the basket and tier currently on screen.
+  const quoteError =
+    cart.count > 0 && quoteResult?.signature === quoteSignature
+      ? quoteResult.error
+      : '';
 
   // Only relevant while the basket is still the one checkout rejected.
   const blockedItems =
@@ -199,20 +264,32 @@ export default function Storefront() {
   const showEmptyState = !isFirstLoad && !loadError && products.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--color-surface-sunken)]">
+    <div className="flex min-h-dvh flex-col bg-[var(--color-surface-sunken)]">
       <StoreHeader
         config={config}
         search={search}
         onSearchChange={changeSearch}
         cartCount={cart.count}
-        cartSubtotal={quote?.grand_total ?? cart.subtotal}
+        cartSubtotal={
+          // items_total, not grand_total: this and `cart.subtotal` must be the
+          // same quantity, or the number jumps by the fees the moment the quote
+          // lands with nothing on screen explaining why. Fees belong in the
+          // drawer, where they are itemised.
+          quote?.items_total ?? cart.subtotal
+        }
         onOpenCart={openCart}
         onOpenAdmin={() => router.push('/admin')}
       />
 
       <CategoryRail categories={categories} selected={category} onSelect={changeCategory} />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 pb-28 sm:px-6">
+      {/* The skip link in layout.tsx targets this. `tabIndex={-1}` makes it a
+          valid focus destination without adding a tab stop of its own. */}
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 pb-28 sm:px-6 lg:px-8 focus:outline-none"
+      >
         {/* Above the grid, and only for someone who has ordered here before:
             for them the whole catalogue is usually the long way round. Renders
             nothing when there is no history, so a first-time visitor sees the
@@ -229,21 +306,29 @@ export default function Storefront() {
           </h1>
           {/* The previous results stay on screen while the next query is in
               flight — replacing them with skeletons on every keystroke is more
-              flicker than information. This says the list is one step behind. */}
-          {isStale ? (
-            <span className="text-xs text-[var(--color-ink-faint)]">Updating…</span>
-          ) : (
-            !isFirstLoad &&
-            products.length > 0 && (
-              <span className="text-sm text-[var(--color-ink-faint)]">
-                {/* "60+" rather than "60" when the page is full: the count is
-                    what was fetched, not what exists, and stating it flatly
-                    would be a quiet lie about the size of the aisle. */}
-                {products.length}
-                {hasMore ? '+' : ''} item{products.length === 1 ? '' : 's'}
-              </span>
-            )
-          )}
+              flicker than information. This says the list is one step behind.
+
+              `aria-live` on the wrapper rather than on either branch, so the
+              region exists before the text changes: a live region announced
+              only from the moment it is inserted announces nothing. Searching
+              used to swap the whole grid in silence, which for a screen-reader
+              user is a page that simply stops responding. */}
+          <span aria-live="polite" aria-atomic="true">
+            {isStale ? (
+              <span className="text-xs text-[var(--color-ink-faint)]">Updating…</span>
+            ) : (
+              !isFirstLoad &&
+              products.length > 0 && (
+                <span className="text-sm text-[var(--color-ink-faint)]">
+                  {/* "60+" rather than "60" when the page is full: the count is
+                      what was fetched, not what exists, and stating it flatly
+                      would be a quiet lie about the size of the aisle. */}
+                  {products.length}
+                  {hasMore ? '+' : ''} item{products.length === 1 ? '' : 's'}
+                </span>
+              )
+            )}
+          </span>
         </div>
 
         {loadError && (
@@ -260,7 +345,7 @@ export default function Storefront() {
         )}
 
         {isFirstLoad && (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
             {Array.from({ length: 12 }).map((_, index) => (
               <div key={index} className="card overflow-hidden p-2.5">
                 <div className="skeleton mb-2 aspect-square rounded-xl" />
@@ -297,7 +382,7 @@ export default function Storefront() {
 
         {!isFirstLoad && products.length > 0 && (
           <>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
               {products.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -323,21 +408,27 @@ export default function Storefront() {
           that is always in reach, so it stays fixed rather than scrolling with
           the grid. */}
       {cart.count > 0 && !isCartOpen && !isCheckoutOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-40 p-3">
+        /* The safe-area inset is what keeps the bar clear of the iOS home
+           indicator — without it the bottom third of a 56px tap target sits
+           under the swipe-up gesture area on every notched iPhone. */
+        <div className="fixed inset-x-0 bottom-0 z-40 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={openCart}
-            className="mx-auto flex min-h-[3.5rem] w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#f4dc93] via-[#d4af37] to-[#b8912a] px-4 py-3 text-[#12100a] shadow-[0_18px_45px_-18px_rgba(212,175,55,0.9)] transition-[filter] hover:brightness-110"
+            className="mx-auto flex min-h-[3.5rem] w-full max-w-2xl items-center justify-between gap-3 rounded-2xl bg-[var(--color-brand-500)] px-4 py-3 text-[var(--color-navy-900)] shadow-[var(--shadow-lg)] transition-colors duration-300 ease-glide hover:bg-[var(--color-brand-600)]"
           >
-            <span className="flex items-center gap-2 text-base font-bold">
-              <ShoppingCart className="h-5 w-5" aria-hidden />
-              {cart.count} item{cart.count === 1 ? '' : 's'}
-              <span className="text-[#12100a]/45">·</span>
+            <span className="flex min-w-0 items-center gap-2 text-base font-bold">
+              <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="truncate">
+                {cart.count} item{cart.count === 1 ? '' : 's'}
+              </span>
+              <span className="text-[var(--color-navy-900)]/50">·</span>
               <span className="tabular-nums">
-                {formatMoney(quote?.grand_total ?? cart.subtotal)}
+                {/* Matches the header pill — see the note on cartSubtotal. */}
+                {formatMoney(quote?.items_total ?? cart.subtotal)}
               </span>
             </span>
-            <span className="text-base font-extrabold">View cart →</span>
+            <span className="shrink-0 text-base font-extrabold">View cart →</span>
           </button>
         </div>
       )}
@@ -353,8 +444,12 @@ export default function Storefront() {
           }}
           quote={quote}
           isQuoting={isQuoting}
+          quoteError={quoteError}
+          onRetryQuote={() => setQuoteReloadToken((token) => token + 1)}
           config={config}
           blockedItems={blockedItems}
+          deliveryType={deliveryType}
+          onDeliveryTypeChange={setDeliveryType}
         />
       )}
 
@@ -365,6 +460,8 @@ export default function Storefront() {
             setCartOpen(true);
           }}
           quote={quote}
+          config={config}
+          deliveryType={deliveryType}
           onUnavailable={(items) => {
             // Send the customer back to the cart — nothing can be fixed from
             // the address form — carrying the list of what actually ran out so

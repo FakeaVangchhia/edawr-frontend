@@ -2,6 +2,7 @@ import { request } from './api';
 import type {
   BasketQuote,
   CartLine,
+  DeliveryType,
   StoreCategory,
   StoreConfig,
   StoreProduct,
@@ -65,10 +66,14 @@ export function toBasketItems(lines: CartLine[]) {
  * will charge them. A second implementation here would drift from the server's
  * the first time a fee changed, and the customer would notice at checkout.
  */
-export function quoteBasket(lines: CartLine[], signal?: AbortSignal): Promise<BasketQuote> {
+export function quoteBasket(
+  lines: CartLine[],
+  deliveryType: DeliveryType,
+  signal?: AbortSignal,
+): Promise<BasketQuote> {
   return request<BasketQuote>('/api/store/quote', {
     method: 'POST',
-    body: { items: toBasketItems(lines) },
+    body: { items: toBasketItems(lines), delivery_type: deliveryType },
     signal,
   });
 }
@@ -81,13 +86,20 @@ export interface CheckoutDetails {
   delivery_notes?: string;
 }
 
+/**
+ * The tier is a third parameter rather than a `CheckoutDetails` field, and
+ * deliberately not optional: TypeScript then makes every caller state which
+ * speed it is buying. A tier that could be silently omitted is a customer
+ * charged for a delivery they did not pick.
+ */
 export function placeOrder(
   lines: CartLine[],
   details: CheckoutDetails,
+  deliveryType: DeliveryType,
 ): Promise<TrackedOrder> {
   return request<TrackedOrder>('/api/store/orders', {
     method: 'POST',
-    body: { ...details, items: toBasketItems(lines) },
+    body: { ...details, delivery_type: deliveryType, items: toBasketItems(lines) },
   });
 }
 

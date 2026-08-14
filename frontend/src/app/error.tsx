@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -26,7 +26,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface-sunken)] px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-[var(--color-surface-sunken)] px-4">
       <div className="card flex max-w-sm flex-col items-center gap-3 p-8 text-center">
         <AlertTriangle className="h-9 w-9 text-[var(--color-danger-600)]" aria-hidden />
         <h1 className="text-lg font-extrabold">Something went wrong</h1>

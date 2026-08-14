@@ -58,15 +58,35 @@ export interface StoreCategory {
   product_count: number;
 }
 
+/** Which delivery speed an order is on. Matches `Order.DELIVERY_TYPE_CHOICES`. */
+export type DeliveryType = 'instant' | 'slow';
+
+/**
+ * One delivery speed, priced by the server.
+ *
+ * `fee` is here so the picker can show what each option costs without doing
+ * arithmetic — the same reason `/api/store/quote` exists.
+ */
+export interface DeliveryTier {
+  key: DeliveryType;
+  label: string;
+  fee: number;
+  promise_minutes: number;
+}
+
 /** The store's own rules, so no fee or promise is hardcoded in the UI. */
 export interface StoreConfig {
   store_name: string;
   store_city: string;
-  promise_minutes: number;
-  delivery_fee: number;
+  /** Fastest first. */
+  delivery_tiers: DeliveryTier[];
   free_delivery_above: number;
   handling_fee: number;
   min_order_value: number;
+  /** The default tier's window — what the store promises when nobody has chosen. */
+  promise_minutes: number;
+  /** The default tier's fee. Prefer reading `delivery_tiers`. */
+  delivery_fee: number;
 }
 
 export interface UnavailableItem {
@@ -85,6 +105,16 @@ export interface BasketQuote {
   free_delivery_shortfall: number;
   meets_minimum: boolean;
   unavailable: UnavailableItem[];
+  /**
+   * The tier this bill was actually priced at, echoed back.
+   *
+   * Read this rather than the UI's own selection when showing the customer
+   * what they are about to pay for: if a request is dropped or lands out of
+   * order, this is what makes the mismatch visible instead of showing one
+   * tier's ETA above another tier's total.
+   */
+  delivery_type: DeliveryType;
+  promised_minutes: number;
 }
 
 export type OrderStatus =
@@ -132,6 +162,8 @@ export interface TrackedOrder {
   handling_fee: number;
   grand_total: number;
   payment_method: string;
+  delivery_type: DeliveryType;
+  delivery_type_label: string;
   promised_minutes: number;
   promised_at: string;
   minutes_remaining: number;

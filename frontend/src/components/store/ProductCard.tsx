@@ -34,14 +34,14 @@ export default function ProductCard({ product }: { product: StoreProduct }) {
       {/* Lifted toward the viewer inside the tilted card. The parallax between
           this and the flat text below is what reads as depth rather than as a
           skew. */}
-      <div className="tilt-layer relative mb-2.5 aspect-square overflow-hidden rounded-xl bg-[rgba(8,7,12,0.55)]">
+      <div className="tilt-layer relative mb-2.5 aspect-square overflow-hidden rounded-2xl bg-[var(--color-surface-inset)]">
         {product.image_url ? (
           <img
             src={assetUrl(product.image_url)}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="ease-glide h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[var(--color-ink-faint)]">
@@ -56,11 +56,13 @@ export default function ProductCard({ product }: { product: StoreProduct }) {
         )}
 
         {!product.in_stock && (
-          // A dark scrim on a dark theme. The old white one was a bright flash
-          // on a black grid — the loudest thing on screen, announcing the one
-          // product that cannot be bought.
-          <div className="absolute inset-0 flex items-center justify-center bg-[rgba(8,7,12,0.78)] backdrop-blur-[2px]">
-            <span className="rounded-lg border border-[rgba(212,175,55,0.3)] bg-[rgba(8,7,12,0.9)] px-2.5 py-1.5 text-sm font-bold text-[var(--color-ink)]">
+          // A LIGHT scrim, which is the inverse of what this was. The argument
+          // has not changed — the scrim should be the quiet choice, not a flash
+          // announcing the one product that cannot be bought — but on a white
+          // tile it is the dark scrim that shouts and the light one that
+          // recedes. The chip's red border is what carries the state.
+          <div className="absolute inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.8)] backdrop-blur-[2px]">
+            <span className="rounded-xl bg-[var(--color-danger-600)] px-2.5 py-1.5 text-sm font-bold text-white shadow-[var(--shadow-sm)]">
               Out of stock
             </span>
           </div>
@@ -68,9 +70,11 @@ export default function ProductCard({ product }: { product: StoreProduct }) {
       </div>
 
       {product.low_stock && product.in_stock && (
-        // Amber, not the old dark orange — that was chosen against white and
-        // is close to invisible here.
-        <span className="mb-1 text-xs font-bold text-[#fbbf24]">Only a few left</span>
+        // The bronze amber, not the brand amber: #F5A623 on white is 2:1, and
+        // this line is the whole warning.
+        <span className="mb-1 text-xs font-bold text-[var(--color-brand-700)]">
+          Only a few left
+        </span>
       )}
 
       <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--color-ink)]">
@@ -87,10 +91,12 @@ export default function ProductCard({ product }: { product: StoreProduct }) {
           easiest possible target to hit. */}
       <div className="mt-auto pt-2.5">
         <div className="mb-2 flex items-baseline gap-2">
-          {/* Gold, and the largest thing on the tile. The price is what the
-              customer is actually deciding on, so it gets the brand colour
-              rather than the decoration around it does. */}
-          <span className="text-xl font-extrabold leading-none text-[var(--color-brand-700)]">
+          {/* Navy, and the largest thing on the tile. The price is what the
+              customer is actually deciding on, and size is a stronger
+              hierarchy signal than hue — a grid of bronze prices reads muddy,
+              while a grid of large navy ones reads as a price list. The amber
+              on this tile belongs to the Add button. */}
+          <span className="text-xl font-extrabold leading-none text-[var(--color-ink)]">
             {formatMoney(product.price)}
           </span>
           {hasDiscount && (

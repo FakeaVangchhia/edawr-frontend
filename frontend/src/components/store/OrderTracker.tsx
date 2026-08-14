@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -151,17 +151,48 @@ export default function OrderTracker({ token }: { token: string }) {
 
   return (
     <Shell>
-      {/* --- the promise, or how it ended --------------------------------- */}
+      {/* --- the promise, or how it ended ---------------------------------
+          Two grounds, so the secondary text has to be told which one it is on.
+          The live and delivered states sit on the navy `brand-gradient` — the
+          one deep panel in the whole storefront, and the reason this screen
+          feels like a receipt worth keeping. The cancelled state sits on a pale
+          red wash instead.
+
+          `--color-ink-soft` and `--color-ink-faint` are navy in this theme, so
+          using them inside the navy hero would be navy on navy: technically
+          rendered, practically invisible. Every line below therefore picks its
+          own tone rather than inheriting one. */}
       <section
-        className={`rounded-2xl p-5 text-[var(--color-ink)] ${isCancelled ? 'bg-[#3a1417] border border-[rgba(252,165,165,0.25)]' : 'brand-gradient border border-[rgba(212,175,55,0.22)]'}`}
+        className={`rounded-2xl p-5 shadow-[var(--shadow-md)] ${
+          isCancelled
+            ? 'border-l-4 border-[var(--color-danger-600)] bg-[var(--color-danger-50)] text-[var(--color-ink)]'
+            : 'brand-gradient text-white'
+        }`}
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-faint)]">
+        <p
+          className={`text-xs font-semibold uppercase tracking-wider ${
+            isCancelled ? 'text-[var(--color-ink-faint)]' : 'text-white/70'
+          }`}
+        >
           Order #{order.id}
+        </p>
+
+        {/* Which speed this was bought at. On the receipt because "arriving in
+            45 minutes" is only reassuring if the customer can see that 45 is
+            what they chose. */}
+        <p
+          className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+            isCancelled
+              ? 'bg-[var(--color-surface)] text-[var(--color-ink-soft)]'
+              : 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]'
+          }`}
+        >
+          {order.delivery_type_label} delivery
         </p>
 
         {isCancelled ? (
           <>
-            <h1 className="mt-1 flex items-center gap-2 text-2xl font-black">
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-black text-[var(--color-danger-600)]">
               <XCircle className="h-6 w-6" aria-hidden />
               Order cancelled
             </h1>
@@ -172,10 +203,10 @@ export default function OrderTracker({ token }: { token: string }) {
         ) : isDelivered ? (
           <>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-black">
-              <Check className="h-6 w-6" aria-hidden />
+              <Check className="h-6 w-6 text-[var(--color-brand-500)]" aria-hidden />
               Delivered
             </h1>
-            <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
+            <p className="mt-1 text-sm text-white/75">
               Delivered at {formatClockTime(order.delivered_at)}. Thanks for shopping with us.
             </p>
           </>
@@ -187,7 +218,7 @@ export default function OrderTracker({ token }: { token: string }) {
                 ? 'Arriving shortly'
                 : `Arriving in ${formatCountdown(order.minutes_remaining)}`}
             </h1>
-            <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
+            <p className="mt-1 text-sm text-white/75">
               {order.is_late
                 ? 'Running a little behind — your order is on its way.'
                 : `Promised within ${order.promised_minutes} minutes of ordering.`}
@@ -210,10 +241,10 @@ export default function OrderTracker({ token }: { token: string }) {
                 <li key={step.status} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                         isDone || isCurrent
-                          ? 'border-[var(--color-brand-500)] bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]'
-                          : 'border-[var(--color-line)] bg-[rgba(8,7,12,0.6)] text-[var(--color-ink-faint)]'
+                          ? 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]'
+                          : 'bg-[var(--color-surface-inset)] text-[var(--color-ink-faint)]'
                       }`}
                     >
                       <Icon className="h-4 w-4" aria-hidden />
@@ -316,7 +347,7 @@ export default function OrderTracker({ token }: { token: string }) {
         <div className="mt-3 space-y-1 border-t border-dashed border-[var(--color-line)] pt-3 text-sm text-[var(--color-ink-soft)]">
           <Row label="Item total" value={formatMoney(order.items_total)} />
           <Row
-            label="Delivery"
+            label={`Delivery · ${order.delivery_type_label}`}
             value={order.delivery_fee === 0 ? 'FREE' : formatMoney(order.delivery_fee)}
           />
           <Row label="Handling" value={formatMoney(order.handling_fee)} />
@@ -343,7 +374,7 @@ export default function OrderTracker({ token }: { token: string }) {
             type="button"
             onClick={cancel}
             disabled={isCancelling}
-            className="btn-ghost flex-1 justify-center border-[rgba(252,165,165,0.4)] text-[var(--color-danger-600)] hover:border-[rgba(252,165,165,0.7)] hover:text-[var(--color-danger-600)]"
+            className="btn-ghost flex-1 justify-center bg-[var(--color-danger-50)] text-[var(--color-danger-600)] hover:bg-[var(--color-danger-50)] hover:text-[var(--color-danger-600)]"
           >
             {isCancelling ? 'Cancelling…' : 'Cancel order'}
           </button>
@@ -361,7 +392,7 @@ export default function OrderTracker({ token }: { token: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)] px-3 py-4 sm:px-6 sm:py-8">
+    <div className="min-h-dvh bg-[var(--color-surface-sunken)] px-3 py-4 sm:px-6 sm:py-8">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">{children}</div>
     </div>
   );

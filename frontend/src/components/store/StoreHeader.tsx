@@ -32,17 +32,23 @@ export default function StoreHeader({
   onOpenCart,
   onOpenAdmin,
 }: StoreHeaderProps) {
+  // No `brand-gradient` here any more. A navy header would put the search field
+  // and the whole top of the page on a dark ground, which is the light-theme
+  // decision made twice in one component. The header is white glass.
+  //
+  // No rule along the bottom edge and no border either: the header's own
+  // shadow separates it from the grid, and a full-bleed amber line across the
+  // viewport read as a seam through the page rather than as a brand mark.
   return (
-    <header className="brand-gradient glass-strong sticky top-0 z-30 border-b border-[rgba(212,175,55,0.18)] text-[var(--color-ink)]">
-      {/* A single gold hairline along the bottom edge. The whole header reads
-          as one pane of glass, and this is the light catching its lip. */}
-      <div className="rule-gold pointer-events-none absolute inset-x-0 bottom-0 h-px" />
-
-      <div className="mx-auto max-w-7xl px-3 pb-3 pt-3 sm:px-6">
+    <header className="glass-strong sticky top-0 z-30 text-[var(--color-ink)]">
+      <div className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 lg:px-8">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="bg-gradient-to-br from-[#f4dc93] via-[#d4af37] to-[#b8912a] bg-clip-text text-xl font-black tracking-tight text-transparent">
+              {/* Navy, not amber. This was gold `bg-clip-text`, which on white
+                  measures 2:1 — the store's own name, unreadable. The wordmark
+                  is the one string on the page that must never be decorative. */}
+              <span className="text-lg font-black tracking-tight text-[var(--color-navy-900)] sm:text-xl">
                 {config?.store_name ?? 'eDawr'}
               </span>
               <span className="hidden text-xs font-medium tracking-[0.18em] text-[var(--color-ink-faint)] uppercase sm:inline">
@@ -50,8 +56,10 @@ export default function StoreHeader({
               </span>
             </div>
 
-            <div className="mt-1 flex items-center gap-1.5 text-lg font-bold text-[var(--color-ink)]">
-              <Timer className="h-5 w-5 text-[var(--color-brand-500)]" aria-hidden />
+            {/* Steps down on a phone: at 19px this line wrapped behind the cart
+                button on a 320px screen and pushed the address onto three. */}
+            <div className="mt-1 flex items-center gap-1.5 text-base font-bold text-[var(--color-ink)] sm:text-lg">
+              <Timer className="h-5 w-5 shrink-0 text-[var(--color-brand-500)]" aria-hidden />
               <span>Delivery in {config?.promise_minutes ?? 15} minutes</span>
             </div>
 
@@ -79,21 +87,21 @@ export default function StoreHeader({
             <button
               type="button"
               onClick={onOpenCart}
-              className="relative flex min-h-[var(--tap-min)] items-center gap-2 rounded-xl border border-[rgba(212,175,55,0.35)] bg-[rgba(212,175,55,0.12)] px-3.5 font-bold text-[var(--color-brand-700)] backdrop-blur transition-colors hover:bg-[rgba(212,175,55,0.22)]"
+              className="relative flex min-h-[var(--tap-min)] items-center gap-2 rounded-xl bg-[var(--color-brand-50)] px-3 font-bold text-[var(--color-brand-700)] transition-colors hover:bg-[var(--color-brand-100)] sm:px-3.5"
               aria-label={`Open cart, ${cartCount} item${cartCount === 1 ? '' : 's'}`}
             >
               <ShoppingCart className="h-6 w-6" aria-hidden />
               {cartCount > 0 ? (
-                <span className="hidden text-base tabular-nums sm:inline">
+                <span className="hidden text-base tabular-nums md:inline">
                   {formatMoney(cartSubtotal)}
                 </span>
               ) : (
-                <span className="hidden text-base sm:inline">Cart</span>
+                <span className="hidden text-base md:inline">Cart</span>
               )}
               {cartCount > 0 && (
-                // Solid gold with dark ink on it — a count is no use if it
-                // cannot be read at 13px.
-                <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#f4dc93] to-[#d4af37] px-1.5 text-xs font-black tabular-nums text-[#12100a] shadow-[0_4px_14px_-4px_rgba(212,175,55,0.9)]">
+                // Solid amber with navy ink on it — 9.5:1, because a count is
+                // no use if it cannot be read at 13px.
+                <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--color-brand-500)] px-1.5 text-xs font-black tabular-nums text-[var(--color-navy-900)] shadow-[var(--shadow-amber)]">
                   {cartCount}
                 </span>
               )}

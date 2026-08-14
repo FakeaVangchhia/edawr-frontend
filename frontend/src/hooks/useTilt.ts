@@ -25,9 +25,13 @@ import { useEffect, useRef } from 'react';
  * hook is ever attached somewhere it should not be.
  */
 
-/** Degrees at the extreme corner. Small on purpose: enough to catch the light
- *  on the glass, not enough to distort the price or shift the Add button. */
-const MAX_TILT_DEG = 5;
+/** Degrees at the extreme corner (doubled in the write below, so this is half
+ *  the peak). Small on purpose: enough to catch the light on the glass, not
+ *  enough to distort the price or shift the Add button. Reduced from 5 — at a
+ *  ±10° peak the grid visibly heaved as the pointer crossed it, which is the
+ *  opposite of calm and is most uncomfortable for the readers who track motion
+ *  slowest. ±7° still catches the light and no longer draws the eye. */
+const MAX_TILT_DEG = 3.5;
 
 export function useTilt<T extends HTMLElement>() {
   const ref = useRef<T>(null);

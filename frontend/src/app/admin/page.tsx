@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,7 +6,7 @@ import AdminShell from '@/components/AdminShell';
 import AdminLogin from '@/components/AdminLogin';
 import { AdminSession } from '@/types';
 import { ADMIN_SESSION_KEY } from '@/lib/auth';
-import { authFetch } from '@/lib/api';
+import { authRequest } from '@/lib/api';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -56,11 +56,10 @@ export default function AdminPage() {
       }
 
       try {
-        const response = await authFetch('/api/auth/me');
-        if (!response.ok) throw new Error('Session expired');
-
         // The backend hands back a refreshed token; keep the newer one.
-        const data = await response.json();
+        const data = await authRequest<{ username?: string; access_token?: string }>(
+          '/api/auth/me',
+        );
         const session: AdminSession = {
           username: data.username || stored.username,
           accessToken: data.access_token || stored.accessToken,
@@ -98,14 +97,19 @@ export default function AdminPage() {
 
   if (!isInitialized) {
     return (
-      <div className="app-shell flex items-center justify-center min-h-screen">
-        <p className="text-slate-500 font-medium animate-pulse">Loading console...</p>
+      // No wrapper background: `body` already paints --color-surface-sunken and
+      // LiquidBackdrop sits behind it, so anything opaque here would cover the
+      // backdrop the glass panels exist to refract.
+      <div className="flex min-h-dvh items-center justify-center">
+        <p className="animate-pulse font-semibold text-[var(--color-ink-faint)]">
+          Loading console…
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="app-shell min-h-screen">
+    <div className="min-h-dvh">
       {adminUser ? (
         <AdminShell
           adminUser={adminUser}

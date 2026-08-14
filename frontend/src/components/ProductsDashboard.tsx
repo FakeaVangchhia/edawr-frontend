@@ -26,34 +26,45 @@ export default function ProductsDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="section-label">Products Catalog</p>
-          <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Manage your product offerings</h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+            Products catalogue
+          </p>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight text-balance">
+            Manage your product offerings
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--color-ink-soft)]">
             Create and update products, manage categories, and oversee inventory listings.
           </p>
         </div>
       </div>
 
-      <div className="panel inline-flex gap-2 rounded-2xl p-2">
+      <div className="card inline-flex gap-2 p-2">
         <button
-          onClick={() => { setActiveTab('list'); setEditingProductId(null); }}
+          type="button"
+          onClick={() => {
+            setActiveTab('list');
+            setEditingProductId(null);
+          }}
+          aria-current={activeTab !== 'categories' ? 'page' : undefined}
           className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
-            activeTab === 'list' || activeTab === 'edit'
-              ? 'bg-slate-900 text-white shadow-sm' 
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            activeTab !== 'categories'
+              ? 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]'
+              : 'text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-sunken)]'
           }`}
         >
-          <Package className="w-4 h-4" /> Products
+          <Package className="h-4 w-4" aria-hidden /> Products
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('categories')}
+          aria-current={activeTab === 'categories' ? 'page' : undefined}
           className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
             activeTab === 'categories'
-              ? 'bg-slate-900 text-white shadow-sm' 
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              ? 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]'
+              : 'text-[var(--color-ink-faint)] hover:bg-[var(--color-surface-sunken)]'
           }`}
         >
-          <Tags className="w-4 h-4" /> Categories
+          <Tags className="h-4 w-4" aria-hidden /> Categories
         </button>
       </div>
 

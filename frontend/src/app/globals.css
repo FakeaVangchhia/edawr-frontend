@@ -1,58 +1,125 @@
 @import "tailwindcss";
 
 /**
- * Design tokens — "midnight & gold".
+ * Design tokens — "amber & navy".
  *
- * The brief was exclusive, premium, liquid glass, gold. The obvious reading of
- * that — gold on a white shopfront — is the one to avoid: gold is a mid-tone,
- * so on white it lands around 2:1 and every price on the page becomes a squint.
- * What luxury actually does is the opposite, and for a reason: a near-black
- * ground makes gold *luminous* rather than muddy, and it happens to be the
- * highest-contrast pairing available. Nothing here is dimmer than 6.7:1, and
- * most of the type sits above 10:1 — comfortably better than the light theme it
- * replaces.
- *
- * The token NAMES are unchanged from that light theme on purpose. Everything
- * downstream — the admin console, the error pages, the storefront — re-themes
- * by reading new values through the same names, rather than by a hundred edits
- * that would each be a chance to miss one.
- *
- * Committed to dark only, as the previous theme was committed to light. A
+ * Three colours: #F5A623 golden amber, #080E20 deep navy, #FFFFFF pure white.
+ * Committed to light only, as the previous theme was committed to dark. A
  * second variant doubles the review surface for every screen.
+ *
+ * THE CONSTRAINT THAT SHAPES EVERYTHING BELOW: #F5A623 on #FFFFFF measures
+ * 2.03:1. It fails AA for text by a factor of two and fails the 3:1 floor for
+ * an icon or a control boundary. So amber is never ink on this page. Amber is
+ * a FILL, and what sits on it is navy — #080E20 on #F5A623 measures 9.48:1,
+ * which is better contrast than the old dark theme's gold button had. The
+ * palette still reads as amber-led because amber takes area rather than
+ * strokes: the buttons, the stepper, the badges, the selected chip.
+ *
+ * The one exception is `--color-brand-700`, a darkened amber reserved for the
+ * rare place a wash needs a label in its own hue. It is the only amber in this
+ * file that may touch text, and only at 15px semibold or larger.
+ *
+ * The ink is navy softened off pure #080E20. Pure navy on pure white measures
+ * 19.2:1 — past the point where more contrast helps and into the range where it
+ * hurts: a maximum-contrast edge blooms for anyone with astigmatism or an older
+ * eye's scattering lens, which is most of the people this store has to serve.
+ * Backing off to ~15:1 removes that glare and costs no legibility. Pure #080E20
+ * is still used, but as a SURFACE and as ink on amber, where the pairing is not
+ * a maximal edge.
+ *
+ * Green is gone with the dark theme. Red stays, because an error a customer
+ * cannot spot is an error they submit twice.
+ *
+ * The token NAMES are unchanged wherever a component already used them, so the
+ * storefront, the admin console and the error pages re-theme by reading new
+ * values through the same names rather than by a hundred edits that would each
+ * be a chance to miss one.
  */
 @theme {
-  /* ---- gold ramp -------------------------------------------------------
-   * Low numbers are dark gold-tinted SURFACES, high numbers are bright gold
-   * INK. That is the inverse of a normal Tailwind ramp, and it is what lets
-   * `bg-brand-50 + text-brand-700` keep meaning "tinted panel, legible label"
-   * in the components that already used it. */
-  --color-brand-50: #1a1408;   /* barely-there gold wash on the ground */
-  --color-brand-100: #2b2210;
-  --color-brand-200: #4a3a18;
-  --color-brand-500: #d4af37;  /* the metal itself: rules, rims, icons */
-  --color-brand-600: #e6c458;
-  --color-brand-700: #f0d67e;  /* brightest — gold used as text */
-  --color-brand-900: #8a6d1f;  /* deep gold, for gradient shadow stops */
+  /* ---- ground & surfaces ----------------------------------------------
+   * Three surface levels, and they are the entire structural vocabulary of
+   * this design. Nothing is outlined; a thing is above the page, on it, or
+   * recessed into it:
+   *
+   *   sunken   the page ground        — a 2% navy tint
+   *   surface  cards, panels, drawers — pure white, lifted by a shadow
+   *   inset    fields, wells, chips   — recessed back into the panel
+   *
+   * The page ground is deliberately NOT #FFFFFF. Borderless only works when
+   * there is something for the white to be white against; on a white-on-white
+   * page every panel would need an outline to exist at all, which is the thing
+   * this vocabulary exists to avoid. */
+  --color-surface-sunken: #f4f6fa; /* the page ground */
+  --color-surface: #ffffff;        /* cards, panels, drawers */
+  --color-surface-inset: #e9eef6;  /* fields, wells, secondary buttons */
+  --color-surface-hover: #dde5f0;  /* a filled control under the pointer */
 
-  /* Champagne. One step off the gold, for the few places that need to be
-     distinct from it without introducing a second brand colour. */
-  --color-accent-500: #e8d9a8;
-  --color-accent-600: #cbb98a;
+  /* Dividers only — a rule *inside* a panel separating two groups of content,
+     never a rectangle around something. There is no border token, because
+     nothing in this design has a border. */
+  --color-line: #e6ebf3;
 
-  --color-ink: #f7f2e6;        /* warm ivory, never pure white */
-  --color-ink-soft: #cfc6b4;
-  --color-ink-faint: #a79d8a;
+  /* ---- ink -------------------------------------------------------------
+   * Three tiers, all navy. The faint tier is held at AAA on purpose: it
+   * carries the unit weights and pack sizes an older shopper most needs to
+   * read, and small secondary type is the first thing to fail them. */
+  --color-ink: #1a2440;            /* body + headings   ~15:1 on white */
+  --color-ink-soft: #3d4967;       /* secondary         ~9:1 */
+  --color-ink-faint: #4a5670;      /* tertiary          ~7:1 — AAA, hold it */
 
-  --color-line: #2a2634;
-  --color-surface: #17151d;    /* the opaque fallback under a glass panel */
-  --color-surface-sunken: #08070c; /* the page ground */
+  /* ---- amber -----------------------------------------------------------
+   * Low numbers are pale washes, 500 is the brand itself, 700 is the only
+   * value here that may be used as text. That is a normal ramp again — the
+   * previous theme inverted it because its surfaces were dark. */
+  --color-brand-50: #fef6e7;       /* amber wash panel */
+  --color-brand-100: #fceacb;
+  --color-brand-200: #f8d08a;      /* wash borders, selection */
+  --color-brand-500: #f5a623;      /* THE brand colour. Fill only. */
+  --color-brand-600: #de9110;      /* hover fill, amber borders */
+  --color-brand-700: #8a5a00;      /* amber as text — 5.9:1, ≥15px semibold */
+  --color-brand-900: #5c3b00;
 
-  --color-fresh-600: #6ee7a8;
-  --color-fresh-500: #34d399;
-  --color-fresh-50: #0d2a1c;
+  /* ---- navy as a surface -----------------------------------------------
+   * The exclusive moments: the tracking hero, the admin login panel. White
+   * and amber both sit on this cleanly. */
+  --color-navy-900: #080e20;
+  --color-navy-800: #101a35;
+  --color-navy-700: #1c2a4d;
 
-  --color-danger-600: #fca5a5;
-  --color-danger-50: #2c1113;
+  /* ---- motion ----------------------------------------------------------
+   * One easing curve and three durations, so every transition in the app
+   * decelerates on the same arc. The curve is a gentle ease-out: motion that
+   * starts promptly and settles slowly reads as smooth, whereas the stock
+   * `ease` finishes abruptly and reads as a snap. */
+  --ease-glide: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-quick: 200ms;
+  --duration-glide: 280ms;
+  --duration-settle: 420ms;
+
+  /* ---- state -----------------------------------------------------------
+   * `ok` is the confirmed/positive tier — navy on a pale navy wash. It was
+   * green, and green is not in this palette. Renamed rather than re-pointed,
+   * because a token called `fresh` holding a navy is a trap for the next
+   * person reading it. */
+  --color-ok-600: #1c2a4d;
+  --color-ok-50: #edf1f8;
+
+  /* Red survives the three-colour rule. An out-of-stock line, a failed field
+     and a cancelled order all have to be findable at a glance, and weight
+     alone does not do that at the edge of vision. */
+  --color-danger-600: #b3261e;     /* ~6:1 on white */
+  --color-danger-50: #fdecea;
+
+  /* ---- elevation -------------------------------------------------------
+   * New. A dark UI separates panels with a glow; a light one has no glow to
+   * lean on and needs real shadows. All four are tinted navy rather than
+   * neutral black, which is what stops a light page looking grey and dirty
+   * where things overlap. */
+  --shadow-xs: 0 1px 2px rgba(8, 14, 32, 0.06);
+  --shadow-sm: 0 2px 8px -2px rgba(8, 14, 32, 0.08), 0 1px 2px rgba(8, 14, 32, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(8, 14, 32, 0.12), 0 2px 6px rgba(8, 14, 32, 0.05);
+  --shadow-lg: 0 24px 56px -20px rgba(8, 14, 32, 0.22), 0 4px 12px rgba(8, 14, 32, 0.06);
+  --shadow-amber: 0 12px 28px -12px rgba(245, 166, 35, 0.45);
 
   /* ---- type scale ------------------------------------------------------
    * Carried over unchanged from the legibility pass. Tailwind v4 generates the
@@ -79,7 +146,7 @@
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   html {
@@ -114,132 +181,156 @@
     color: var(--color-ink);
   }
 
-  /* Gold, so the focus ring belongs to the theme rather than fighting it —
-     but three solid pixels with an offset, because it is also the only "where
-     am I?" cue a keyboard or switch user gets. */
+  /**
+   * The focus ring is navy, not amber.
+   *
+   * Amber was the obvious choice — it is the brand colour and the old theme's
+   * ring was gold. But #F5A623 against white is 2.03:1, and WCAG 1.4.11 asks
+   * for 3:1 on a focus indicator. An amber ring on a white card is a ring that
+   * a low-vision keyboard user cannot find, on the one cue that tells them
+   * where they are. Navy clears it on white, on the amber fills, and on every
+   * wash in this file, so one colour covers the whole app.
+   *
+   * Three layers, each doing a different job: the navy outline carries the
+   * contrast, the white ring keeps the outline visible when focus lands on a
+   * navy panel (where navy-on-navy would vanish), and the amber halo is the
+   * brand — decorative, and load-bearing for nothing.
+   */
   :focus-visible {
-    outline: 3px solid var(--color-brand-600);
+    outline: 3px solid var(--color-navy-900);
     outline-offset: 2px;
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 0 0 6px rgba(245, 166, 35, 0.35);
   }
 }
 
 @layer components {
   /* ======================================================================
-   * Liquid glass
+   * Surfaces — DEPTH, NOT OUTLINES
    *
-   * Three things together make glass read as glass, and dropping any one of
-   * them gives the flat grey panel that most "glassmorphism" turns into:
-   *   1. a translucent fill, so the animated backdrop shows through;
-   *   2. `backdrop-filter: blur() saturate()`, which is what bends and
-   *      enriches whatever is behind rather than merely dimming it;
-   *   3. a specular edge — the inset top highlight — because a real pane is
-   *      brightest where the light catches its lip.
-   * The gold rim is the fourth, and it is what makes it this store's glass
-   * rather than everyone else's.
+   * Nothing in this file draws a box around itself. A panel is separated from
+   * the page by being a lighter surface that sits above it, and that is all:
+   * white fill, a soft navy-tinted shadow, and the page's own tint showing
+   * around it. No 1px line anywhere.
+   *
+   * This is the whole reason the page ground is #F4F6FA rather than #FFFFFF.
+   * Borderless only works when there is something for the white to be white
+   * *against* — on a white-on-white page every panel would need an outline to
+   * exist at all, which is the thing being removed.
+   *
+   * Glass survives in one place only, `.glass-strong`: a sticky element with
+   * content genuinely scrolling underneath it. Everywhere else a backdrop blur
+   * over white blurs white, at the cost of a compositor layer per panel.
    * ==================================================================== */
   .glass {
     position: relative;
-    background:
-      linear-gradient(
-        135deg,
-        rgba(255, 250, 235, 0.075) 0%,
-        rgba(255, 250, 235, 0.025) 45%,
-        rgba(212, 175, 55, 0.045) 100%
-      );
-    backdrop-filter: blur(22px) saturate(165%);
-    -webkit-backdrop-filter: blur(22px) saturate(165%);
-    border: 1px solid rgba(212, 175, 55, 0.16);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 245, 220, 0.14),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.35),
-      0 22px 55px -28px rgba(0, 0, 0, 0.9);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
   }
 
-  /* For panels that sit above the page rather than in it — drawers, sheets,
-     the header. Denser, because text has to stay readable over a scrolling
-     product grid rather than over a static backdrop. */
   .glass-strong {
-    background:
-      linear-gradient(160deg, rgba(28, 25, 36, 0.92) 0%, rgba(12, 10, 17, 0.96) 100%);
-    backdrop-filter: blur(30px) saturate(150%);
-    -webkit-backdrop-filter: blur(30px) saturate(150%);
-    border-color: rgba(212, 175, 55, 0.14);
-    box-shadow: inset 0 1px 0 rgba(255, 245, 220, 0.10);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px) saturate(120%);
+    -webkit-backdrop-filter: blur(20px) saturate(120%);
+    box-shadow: var(--shadow-lg);
   }
 
-  /* A hairline of gold. Used as a divider where a solid border would be loud. */
+  /* Kept as a token for the rare place a divider genuinely helps — but it is
+     no longer used as a header underline. A full-bleed amber rule across the
+     viewport read as a seam through the page rather than as a brand mark. */
   .rule-gold {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(212, 175, 55, 0.45) 50%,
-      transparent
-    );
+    background: var(--color-brand-500);
   }
 
   .card {
     position: relative;
-    border-radius: 1.15rem;
-    background:
-      linear-gradient(
-        135deg,
-        rgba(255, 250, 235, 0.075) 0%,
-        rgba(255, 250, 235, 0.025) 45%,
-        rgba(212, 175, 55, 0.045) 100%
-      );
-    backdrop-filter: blur(22px) saturate(165%);
-    -webkit-backdrop-filter: blur(22px) saturate(165%);
-    border: 1px solid rgba(212, 175, 55, 0.16);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 245, 220, 0.14),
-      0 22px 55px -28px rgba(0, 0, 0, 0.9);
+    /* A larger radius is the cheapest smoothing there is — it removes four
+       hard corners from every tile in the grid, and it matters more without a
+       border, since the curve is now the whole shape. */
+    border-radius: 1.35rem;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-quick) var(--ease-glide);
   }
 
+  /* The navy surface. This is where the palette's third colour earns its place:
+     one deep panel per screen, and everything else white. Text on it is white
+     or amber. */
   .brand-gradient {
     background:
-      radial-gradient(120% 140% at 12% 0%, rgba(212, 175, 55, 0.22) 0%, transparent 55%),
-      linear-gradient(160deg, #14111c 0%, #0b0910 60%, #08070c 100%);
+      radial-gradient(120% 140% at 12% 0%, rgba(245, 166, 35, 0.16) 0%, transparent 58%),
+      linear-gradient(160deg, var(--color-navy-700) 0%, var(--color-navy-800) 55%, var(--color-navy-900) 100%);
+    color: #ffffff;
   }
 
+  /* ---- filled fields, no outline --------------------------------------
+   * The field is a recessed shape rather than an outlined box: a tinted fill
+   * inside a white card, which is the inverse of the card's own relationship
+   * to the page. Nothing is stroked.
+   *
+   * Worth stating what that costs. WCAG 1.4.11 wants 3:1 on the boundary of a
+   * control, and this fill against white is about 1.2:1 — a border cleared
+   * that bar and a fill does not. Three things carry it instead: every field
+   * in this app has a permanent visible label above it (never a placeholder
+   * standing in for one), the fill covers the full tap target so the shape is
+   * unambiguous, and focus draws a 3px navy ring that is well past 3:1. An
+   * invalid field additionally goes red-tinted AND carries `aria-invalid` and
+   * a `role="alert"` message, so its state is never fill alone. */
   .field {
     width: 100%;
     min-height: var(--tap-min);
     border-radius: 0.75rem;
-    /* Two pixels. A hairline against a dark panel is the first thing to
-       disappear for a low-contrast reader, and a field whose edge you cannot
-       see is a field you do not know is there. */
-    border: 2px solid rgba(212, 175, 55, 0.20);
-    background: rgba(8, 7, 12, 0.55);
-    padding: 0.75rem 0.9rem;
+    border: none;
+    background: var(--color-surface-inset);
+    padding: 0.75rem 0.95rem;
     /* 17px. Also the threshold below which iOS Safari zooms the page on focus —
        the "why did the layout jump?" bug behind many mobile checkout forms. */
     font-size: var(--text-base);
     color: var(--color-ink);
     outline: none;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      background-color var(--duration-quick) var(--ease-glide),
+      box-shadow var(--duration-quick) var(--ease-glide);
   }
 
   .field::placeholder {
     color: var(--color-ink-faint);
   }
 
+  .field:hover:not(:focus) {
+    background: var(--color-surface-hover);
+  }
+
+  /* The ring replaces the border rather than sitting outside one, so focus
+     does not shift a single pixel of layout. */
   .field:focus {
-    border-color: var(--color-brand-500);
-    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.18);
+    background: var(--color-surface);
+    box-shadow:
+      0 0 0 2px var(--color-navy-900),
+      0 0 0 6px rgba(245, 166, 35, 0.3);
   }
 
   .field-invalid {
-    border-color: #e57373;
+    background: var(--color-danger-50);
+    color: var(--color-ink);
   }
 
   .field-invalid:focus {
-    box-shadow: 0 0 0 4px rgba(229, 115, 115, 0.22);
+    background: var(--color-surface);
+    box-shadow:
+      0 0 0 2px var(--color-danger-600),
+      0 0 0 6px rgba(179, 38, 30, 0.22);
   }
 
-  /* ---- the gold call to action ---------------------------------------
-   * A polished-metal fill with DARK text on it. Gold type on a gold button
-   * would be the pretty, unreadable choice; ink on gold measures 9:1 and is
-   * what an actual foil-stamped card does. */
+  /* ---- the amber call to action ---------------------------------------
+   * A flat amber fill with NAVY text on it, measuring 9.48:1. Amber type on
+   * anything would be the pretty, unreadable choice.
+   *
+   * Flat, not a gradient, and no travelling sheen. The dark theme's metallic
+   * treatment sold gold as foil against a black card; the same highlight
+   * crossing a button on a white page reads as a rendering artefact, and it
+   * was the most eye-catching thing on a screen whose job is to be calm. */
   .btn-primary {
     position: relative;
     display: inline-flex;
@@ -249,42 +340,29 @@
     /* Larger than the 44px floor: it is the end of the whole journey, and it
        should be impossible to miss or to mis-tap. */
     min-height: 3.25rem;
-    overflow: hidden;
-    border-radius: 0.8rem;
-    background: linear-gradient(135deg, #f4dc93 0%, #d4af37 45%, #b8912a 100%);
-    color: #12100a;
+    border-radius: 0.95rem;
+    background: var(--color-brand-500);
+    color: var(--color-navy-900);
     font-weight: 800;
     font-size: var(--text-base);
     padding: 0.85rem 1.15rem;
+    /* The inset lip is the whole foil-stamp cue, at zero animation cost. It is
+       what the old theme's travelling sheen was for, minus the infinite
+       animation on every screen. */
     box-shadow:
-      inset 0 1px 0 rgba(255, 252, 240, 0.6),
-      0 12px 30px -12px rgba(212, 175, 55, 0.55);
-    transition: filter 140ms ease, transform 140ms ease, box-shadow 140ms ease;
-  }
-
-  /* The travelling highlight that makes the fill read as metal rather than as
-     a flat yellow rectangle. Purely decorative, and switched off entirely
-     under reduced-motion at the end of this file. */
-  .btn-primary::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      105deg,
-      transparent 35%,
-      rgba(255, 255, 255, 0.55) 50%,
-      transparent 65%
-    );
-    transform: translateX(-120%);
-    animation: sheen 5.5s ease-in-out infinite;
-    pointer-events: none;
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      var(--shadow-amber);
+    transition:
+      background-color var(--duration-glide) var(--ease-glide),
+      transform var(--duration-glide) var(--ease-glide),
+      box-shadow var(--duration-glide) var(--ease-glide);
   }
 
   .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.07);
+    background: var(--color-brand-600);
     box-shadow:
-      inset 0 1px 0 rgba(255, 252, 240, 0.7),
-      0 16px 38px -12px rgba(212, 175, 55, 0.7);
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      var(--shadow-md);
   }
 
   .btn-primary:active:not(:disabled) {
@@ -292,51 +370,54 @@
   }
 
   .btn-primary:disabled {
-    background: rgba(255, 250, 235, 0.09);
+    background: var(--color-line);
     color: var(--color-ink-faint);
     box-shadow: none;
     cursor: not-allowed;
   }
 
-  .btn-primary:disabled::after {
-    animation: none;
-    opacity: 0;
-  }
-
-  @keyframes sheen {
-    0%, 62% { transform: translateX(-120%); }
-    92%, 100% { transform: translateX(120%); }
-  }
-
+  /* The secondary button. Filled, not outlined — a tinted surface reads as
+     pressable without drawing a rectangle, and it keeps the whole page free of
+     competing rules. */
   .btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     min-height: var(--tap-min);
-    border-radius: 0.75rem;
-    border: 1px solid rgba(212, 175, 55, 0.28);
-    background: rgba(255, 250, 235, 0.04);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    color: var(--color-ink-soft);
+    border-radius: 0.85rem;
+    border: none;
+    background: var(--color-surface-inset);
+    color: var(--color-ink);
     font-weight: 600;
     font-size: var(--text-base);
     padding: 0.6rem 1.1rem;
-    transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+    transition:
+      color var(--duration-quick) var(--ease-glide),
+      background-color var(--duration-quick) var(--ease-glide);
   }
 
-  .btn-ghost:hover {
-    border-color: var(--color-brand-500);
-    background: rgba(212, 175, 55, 0.10);
-    color: var(--color-brand-700);
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+    color: var(--color-ink);
+  }
+
+  .btn-ghost:disabled {
+    color: var(--color-ink-faint);
+    cursor: not-allowed;
   }
 
   /* The Add button on a product tile, and the stepper it turns into.
      Deliberately not uppercase: capitals strip the word-shape a reader
      recognises, which costs most for the people this store has to be easiest
      for. "Add" also beats a bare "+" — an icon must be decoded, a verb need
-     not be. */
+     not be.
+
+     A cream wash rather than solid amber, and no outline. Sixty saturated
+     amber blocks down a product grid is a shouting aisle; solid amber is
+     reserved for the one CTA per screen that actually is the next step. The
+     label is bronze on the wash — 5.5:1 — which is what tells the eye this is
+     the amber control on the tile without the tile having to shout. */
   .btn-add {
     display: inline-flex;
     align-items: center;
@@ -344,25 +425,25 @@
     gap: 0.4rem;
     width: 100%;
     min-height: var(--tap-min);
-    border-radius: 0.7rem;
-    border: 1px solid rgba(212, 175, 55, 0.45);
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.16), rgba(212, 175, 55, 0.06));
+    border-radius: 0.85rem;
+    border: none;
+    background: var(--color-brand-50);
     color: var(--color-brand-700);
     font-weight: 800;
     font-size: var(--text-base);
     padding: 0.5rem;
-    transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    transition:
+      background-color var(--duration-quick) var(--ease-glide),
+      color var(--duration-quick) var(--ease-glide);
   }
 
   .btn-add:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.12));
-    border-color: var(--color-brand-500);
-    box-shadow: 0 8px 24px -12px rgba(212, 175, 55, 0.75);
+    background: var(--color-brand-500);
+    color: var(--color-navy-900);
   }
 
   .btn-add:disabled {
-    border-color: var(--color-line);
-    background: rgba(255, 250, 235, 0.04);
+    background: var(--color-surface-inset);
     color: var(--color-ink-faint);
     cursor: not-allowed;
   }
@@ -372,13 +453,12 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    border-radius: 0.7rem;
-    background: linear-gradient(135deg, #f4dc93 0%, #d4af37 50%, #bf9a2d 100%);
-    color: #12100a;
+    border-radius: 0.85rem;
+    background: var(--color-brand-500);
+    color: var(--color-navy-900);
     font-weight: 800;
     font-size: var(--text-base);
     overflow: hidden;
-    box-shadow: inset 0 1px 0 rgba(255, 252, 240, 0.55);
   }
 
   /* Each half is a full tap target in its own right. At the ~28px this used to
@@ -391,28 +471,32 @@
     min-width: var(--tap-min);
     min-height: var(--tap-min);
     line-height: 1;
-    transition: background-color 120ms ease;
+    transition: background-color var(--duration-quick) var(--ease-glide);
   }
 
   .stepper button:hover:not(:disabled) {
-    background: rgba(18, 16, 10, 0.16);
+    background: rgba(8, 14, 32, 0.14);
   }
 
   .stepper button:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
+  /* Navy chip, amber type — 9.47:1, and the inverse of everything else on the
+     tile. The tile already carries an amber Add button; a second amber block
+     above it would compete with the control the customer is meant to press.
+     A small dark chip with amber type reads as a foil sticker instead. */
   .badge-discount {
-    background: linear-gradient(135deg, #f4dc93 0%, #d4af37 100%);
-    color: #12100a;
+    background: var(--color-navy-900);
+    color: var(--color-brand-500);
     font-weight: 800;
     font-size: var(--text-xs);
     line-height: 1.15;
     letter-spacing: 0.01em;
     padding: 0.25rem 0.5rem;
-    border-radius: 0.4rem;
-    box-shadow: 0 6px 18px -8px rgba(212, 175, 55, 0.9);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-xs);
   }
 
   .pill {
@@ -434,13 +518,15 @@
     justify-content: center;
     min-width: var(--tap-min);
     min-height: var(--tap-min);
-    border-radius: 0.7rem;
+    border-radius: 0.85rem;
     color: var(--color-ink-soft);
-    transition: background-color 140ms ease, color 140ms ease;
+    transition:
+      background-color var(--duration-quick) var(--ease-glide),
+      color var(--duration-quick) var(--ease-glide);
   }
 
   .btn-icon:hover {
-    background: rgba(255, 250, 235, 0.08);
+    background: var(--color-surface-sunken);
     color: var(--color-ink);
   }
 
@@ -460,21 +546,23 @@
       rotateX(var(--tilt-x, 0deg))
       rotateY(var(--tilt-y, 0deg))
       translateZ(0);
-    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 320ms ease;
+    transition:
+      transform var(--duration-settle) var(--ease-glide),
+      box-shadow var(--duration-settle) var(--ease-glide),
+      border-color var(--duration-settle) var(--ease-glide);
   }
 
   .tilt-3d:hover {
     will-change: transform;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 245, 220, 0.2),
-      0 30px 70px -30px rgba(0, 0, 0, 0.95),
-      0 0 0 1px rgba(212, 175, 55, 0.3);
+    box-shadow: var(--shadow-md);
   }
 
   /* Lifts a child toward the viewer inside a tilted card, which is what sells
-     the parallax as depth rather than as a skew. */
+     the parallax as depth rather than as a skew. Lifted modestly, to stay in
+     proportion with the gentle tilt — the parallax should suggest depth, not
+     detach the image from its own card. */
   .tilt-layer {
-    transform: translateZ(38px);
+    transform: translateZ(24px);
     transform-style: preserve-3d;
   }
 
@@ -487,31 +575,59 @@
     display: none;
   }
 
+  /* Sweeps DARKER than its surroundings. The dark theme's skeleton swept
+     brighter, which on a white card is a white shimmer on white — invisible,
+     and therefore no longer a signal that something is loading. */
   .skeleton {
     background: linear-gradient(
       90deg,
-      rgba(255, 250, 235, 0.04) 25%,
-      rgba(212, 175, 55, 0.12) 37%,
-      rgba(255, 250, 235, 0.04) 63%
+      #edf1f7 25%,
+      #dfe6f0 37%,
+      #edf1f7 63%
     );
     background-size: 400% 100%;
-    animation: skeleton-sweep 1.4s ease infinite;
+    /* Slow, and a gentle peak. A fast sweep across a grid of placeholders is a
+       lot of flicker at exactly the moment the page is already busy. */
+    animation: skeleton-sweep 2s var(--ease-glide) infinite;
   }
 
   @keyframes skeleton-sweep {
     0% { background-position: 100% 50%; }
     100% { background-position: 0 50%; }
   }
+
+  /* Jump to the product grid. Off-screen until focused, which is the whole
+     point: it costs a sighted mouse user nothing and saves a keyboard user
+     tabbing through the header, the category rail and the search box on every
+     single page load. */
+  .skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    transform: translateY(-150%);
+    border-radius: 0.75rem;
+    background: var(--color-navy-900);
+    color: #ffffff;
+    font-weight: 700;
+    padding: 0.75rem 1.1rem;
+    box-shadow: var(--shadow-lg);
+    transition: transform var(--duration-quick) var(--ease-glide);
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
 }
 
 /**
  * Reduced motion.
  *
- * Everything decorative stops: the sheen, the drifting orbs, the tilt. The
- * blanket duration override below would flatten the animations but would leave
- * a tilted card frozen mid-rotation, so the transform is reset explicitly.
- * Vestibular sensitivity is common in exactly the audience this store is meant
- * to be easiest for, and a 3D flourish is never worth a dizzy customer.
+ * Everything decorative stops: the tilt, the skeleton sweep. The blanket
+ * duration override below would flatten the animations but would leave a tilted
+ * card frozen mid-rotation, so the transform is reset explicitly. Vestibular
+ * sensitivity is common in exactly the audience this store is meant to be
+ * easiest for, and a 3D flourish is never worth a dizzy customer.
  */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -525,11 +641,6 @@
 
   .tilt-layer {
     transform: none !important;
-  }
-
-  .btn-primary::after {
-    animation: none !important;
-    opacity: 0;
   }
 
   *,

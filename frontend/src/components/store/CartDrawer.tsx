@@ -1,14 +1,22 @@
-'use client';
+﻿'use client';
 
 /* eslint-disable @next/next/no-img-element -- see ProductCard.tsx */
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ImageOff, ShoppingBag, Timer, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ImageOff, ShoppingBag, Trash2, X } from 'lucide-react';
 import { assetUrl } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { formatMoney, formatMoneyExact } from '@/lib/format';
-import type { BasketQuote, StoreConfig, UnavailableItem } from '@/types';
+import type {
+  BasketQuote,
+  DeliveryType,
+  StoreConfig,
+  UnavailableItem,
+} from '@/types';
+import { tierFor, tiersFrom } from '@/lib/delivery';
+import { useDialog } from '@/hooks/useDialog';
 import QuantityStepper from './QuantityStepper';
+import DeliveryTierPicker from './DeliveryTierPicker';
 
 interface CartDrawerProps {
   onClose: () => void;
@@ -16,6 +24,17 @@ interface CartDrawerProps {
   quote: BasketQuote | null;
   isQuoting: boolean;
   config: StoreConfig | null;
+  deliveryType: DeliveryType;
+  onDeliveryTypeChange: (deliveryType: DeliveryType) => void;
+  /**
+   * Why the last quote failed, if it did. Empty when the basket priced cleanly.
+   *
+   * Checkout stays disabled either way — without a verified total there is
+   * nothing safe to check out with — but the customer is told why and given a
+   * retry, instead of a button that says "Updating…" forever.
+   */
+  quoteError?: string;
+  onRetryQuote?: () => void;
   /** Items a checkout attempt rejected with a 409, if there was one. */
   blockedItems?: UnavailableItem[];
 }
@@ -26,10 +45,16 @@ export default function CartDrawer({
   onCheckout,
   quote,
   isQuoting,
+  quoteError = '',
+  onRetryQuote,
   config,
   blockedItems = [],
+  deliveryType,
+  onDeliveryTypeChange,
 }: CartDrawerProps) {
   const { lines, count, setQuantity, remove, clear, subtotal } = useCart();
+  const tiers = tiersFrom(config);
+  const tier = tierFor(config, deliveryType);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   /**
    * "Empty cart" asks first.
@@ -40,23 +65,20 @@ export default function CartDrawer({
    */
   const [isConfirmingClear, setConfirmingClear] = useState(false);
 
-  // Escape closes, and the body stops scrolling behind the panel — without the
-  // second part, scrolling the drawer on a phone scrolls the product grid
-  // underneath it once the drawer's own list hits its end.
+  // Focus in, focus trapped, focus restored, page frozen — see useDialog.
+  const dialogRef = useDialog<HTMLDivElement>({
+    onClose,
+    initialFocusRef: closeButtonRef,
+  });
+
+  // Escape lives here rather than in the hook because the checkout sheet needs
+  // a different rule for it. The cart has nothing in flight to interrupt.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKeyDown);
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   // Two sources: what the quote says right now, and what a failed checkout
@@ -72,16 +94,22 @@ export default function CartDrawer({
   const canCheckout = count > 0 && !isQuoting && !hasProblems && !belowMinimum && quote !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Your cart">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-50 flex justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Your cart"
+    >
       <button
         type="button"
         aria-label="Close cart"
         onClick={onClose}
-        className="absolute inset-0 bg-[rgba(4,3,8,0.72)] backdrop-blur-[3px]"
+        className="absolute inset-0 bg-[rgba(8,14,32,0.45)] backdrop-blur-[3px]"
       />
 
-      <aside className="glass-strong relative flex h-full w-full max-w-md flex-col border-l border-[rgba(212,175,55,0.2)] shadow-2xl">
-        <header className="flex items-center justify-between border-b border-[var(--color-line)] px-4 py-3.5">
+      <aside className="glass-strong relative flex h-dvh w-full max-w-md flex-col sm:rounded-l-3xl">
+        <header className="flex items-center justify-between px-4 py-3.5">
           <div>
             <h2 className="text-xl font-extrabold">Your cart</h2>
             <p className="text-sm text-[var(--color-ink-faint)]">
@@ -105,7 +133,7 @@ export default function CartDrawer({
             <p className="text-lg font-semibold">Your cart is empty</p>
             <p className="text-base text-[var(--color-ink-faint)]">
               Add a few things and they will be at your door in{' '}
-              {config?.promise_minutes ?? 15} minutes.
+              {tiers[0].promise_minutes} minutes.
             </p>
             <button type="button" onClick={onClose} className="btn-ghost mt-2">
               Start shopping
@@ -113,10 +141,20 @@ export default function CartDrawer({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 bg-[var(--color-fresh-50)] px-4 py-3 text-base font-semibold text-[var(--color-fresh-600)]">
-              <Timer className="h-5 w-5" aria-hidden />
-              Arriving in {config?.promise_minutes ?? 15} minutes
-            </div>
+            {/* This was a static "Arriving in 15 minutes" band. It is now the
+                choice that produces that number — same place in the layout,
+                because the speed and the ETA were always the same fact. */}
+            <DeliveryTierPicker
+              tiers={tiers}
+              selected={deliveryType}
+              onSelect={onDeliveryTypeChange}
+              quote={quote}
+            />
+
+            {/* No separate "Arriving in N minutes" band any more. The picker
+                above already states the window on the selected card, and two
+                bands saying fifteen minutes is one band too many in a drawer
+                that has to fit a basket, a bill and a CTA on a 568px screen. */}
 
             <ul className="flex-1 divide-y divide-[var(--color-line)] overflow-y-auto px-4">
               {lines.map((line) => {
@@ -156,16 +194,23 @@ export default function CartDrawer({
                         </p>
                       )}
 
-                      <div className="mt-2.5 flex items-center justify-between gap-2">
-                        <div className="w-[8.5rem]">
+                      {/* Wraps rather than shrinks. The stepper is two 44px tap
+                          targets and the bin is a third, which is about 230px
+                          of content on a row that has roughly 210px to give on
+                          a 320px phone. Squeezing them would have taken the
+                          targets below the WCAG floor the stepper exists to
+                          hold, so on the narrowest screens the price and bin
+                          drop to a second line instead. */}
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                        <div className="w-[8.5rem] shrink-0">
                           <QuantityStepper
                             quantity={line.quantity}
                             label={line.product.name}
                             onChange={(next) => setQuantity(line.product, next)}
                           />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-base font-bold tabular-nums">
+                        <div className="ml-auto flex min-w-0 items-center gap-1">
+                          <span className="truncate text-base font-bold tabular-nums">
                             {formatMoney(line.product.price * line.quantity)}
                           </span>
                           {/* Kept alongside the stepper's bin-at-one: this is
@@ -199,7 +244,8 @@ export default function CartDrawer({
                   handling — lower than what they are about to be charged. */}
               <BillRow label="Item total" value={quote?.items_total ?? subtotal} />
               <BillRow
-                label="Delivery"
+                // Named, so a screenshot of this bill explains its own fee.
+                label={`Delivery · ${tier.label}`}
                 value={quote?.delivery_fee}
                 free={quote?.delivery_fee === 0}
               />
@@ -229,6 +275,27 @@ export default function CartDrawer({
                 </p>
               )}
 
+              {/* A failed quote is a dead end without this. The button below is
+                  disabled until a total exists, so with nothing on screen the
+                  customer is left tapping a greyed-out control with no idea
+                  what went wrong or what to do about it. */}
+              {quoteError && (
+                <div className="mt-2 rounded-lg bg-[var(--color-danger-50)] px-3 py-2.5">
+                  <p className="text-sm font-semibold text-[var(--color-danger-600)]">
+                    {quoteError}
+                  </p>
+                  {onRetryQuote && (
+                    <button
+                      type="button"
+                      onClick={onRetryQuote}
+                      className="btn-ghost mt-2 w-full"
+                    >
+                      Try again
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* "Next: your address" rather than "Choose address": it names
                   what happens on tap and says there is another step, so the
                   button can never be mistaken for the one that places the
@@ -242,13 +309,15 @@ export default function CartDrawer({
               >
                 {isQuoting
                   ? 'Updating…'
-                  : hasProblems
-                    ? 'Fix cart to continue'
-                    : 'Next: your address'}
+                  : quoteError
+                    ? 'Total unavailable'
+                    : hasProblems
+                      ? 'Fix cart to continue'
+                      : 'Next: your address'}
               </button>
 
               {isConfirmingClear ? (
-                <div className="mt-3 rounded-xl border-2 border-[var(--color-line)] p-3">
+                <div className="mt-3 rounded-xl bg-[var(--color-surface-inset)] p-3">
                   <p className="text-base font-semibold">
                     Remove all {count} item{count === 1 ? '' : 's'}?
                   </p>
@@ -266,7 +335,7 @@ export default function CartDrawer({
                         clear();
                         setConfirmingClear(false);
                       }}
-                      className="btn-ghost flex-1 border-[#fecdd3] text-[var(--color-danger-600)]"
+                      className="btn-ghost flex-1 bg-[var(--color-danger-50)] text-[var(--color-danger-600)] hover:bg-[var(--color-danger-50)] hover:text-[var(--color-danger-600)]"
                     >
                       Yes, empty
                     </button>
@@ -305,7 +374,10 @@ function BillRow({
         // Not "₹0" — a fee that has not been calculated yet is unknown, not free.
         <span className="text-[var(--color-ink-faint)]">—</span>
       ) : free ? (
-        <span className="font-bold text-[var(--color-fresh-600)]">Free</span>
+        // No colour on it. "Free" is the only word in a column of numerals,
+        // which is already the strongest signal available — and the green it
+        // used to be is not in this palette.
+        <span className="font-bold text-[var(--color-ink)]">Free</span>
       ) : (
         <span className="tabular-nums">{formatMoney(value)}</span>
       )}

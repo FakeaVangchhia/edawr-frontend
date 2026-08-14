@@ -1,19 +1,30 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, Loader2, Wallet } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeft, Loader2, Timer, Wallet } from 'lucide-react';
 import { ApiError } from '@/lib/api';
 import { useCart } from '@/lib/cart';
 import { formatMoneyExact } from '@/lib/format';
 import { placeOrder, type CheckoutDetails } from '@/lib/store-api';
 import { rememberOrder } from '@/lib/recent-orders';
-import type { BasketQuote, TrackedOrder, UnavailableItem } from '@/types';
+import type {
+  BasketQuote,
+  DeliveryType,
+  StoreConfig,
+  TrackedOrder,
+  UnavailableItem,
+} from '@/types';
+import { tierFor } from '@/lib/delivery';
+import { useDialog } from '@/hooks/useDialog';
 
 interface CheckoutSheetProps {
   onClose: () => void;
   onPlaced: (order: TrackedOrder) => void;
   onUnavailable: (items: UnavailableItem[]) => void;
   quote: BasketQuote | null;
+  config: StoreConfig | null;
+  /** Chosen back in the cart. Shown here, not changed here. */
+  deliveryType: DeliveryType;
 }
 
 interface FieldErrors {
@@ -56,8 +67,20 @@ export default function CheckoutSheet({
   onPlaced,
   onUnavailable,
   quote,
+  config,
+  deliveryType,
 }: CheckoutSheetProps) {
   const { lines, clear } = useCart();
+  /**
+   * The tier the customer was shown a price for, preferred over the prop.
+   *
+   * Checkout is gated on `quote !== null` back in the cart, so the fallback
+   * should never fire — it exists so the value is non-optional rather than as a
+   * real code path. Sending the quote's tier is what guarantees the order is
+   * placed on the same speed the total on this screen was calculated from.
+   */
+  const chosenType = quote?.delivery_type ?? deliveryType;
+  const tier = tierFor(config, chosenType);
   const [details, setDetails] = useState<CheckoutDetails>({
     customer_name: '',
     customer_phone: '',
@@ -72,12 +95,10 @@ export default function CheckoutSheet({
   const phoneRef = useRef<HTMLInputElement>(null);
   const addressRef = useRef<HTMLTextAreaElement>(null);
 
-  // Moving focus is a DOM side effect, not a state update — this is exactly
-  // what effects are for. The form starts empty because the component is
-  // freshly mounted each time it opens.
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
+  // Focus into the name field, trapped inside the sheet, restored to whatever
+  // opened it, page frozen behind. The form starts empty because the component
+  // is freshly mounted each time it opens.
+  const dialogRef = useDialog<HTMLDivElement>({ onClose, initialFocusRef: nameRef });
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -137,11 +158,15 @@ export default function CheckoutSheet({
 
     setIsSubmitting(true);
     try {
-      const order = await placeOrder(lines, {
-        ...details,
-        customer_name: details.customer_name.trim(),
-        customer_address: details.customer_address.trim(),
-      });
+      const order = await placeOrder(
+        lines,
+        {
+          ...details,
+          customer_name: details.customer_name.trim(),
+          customer_address: details.customer_address.trim(),
+        },
+        chosenType,
+      );
 
       // Remembered before the cart is cleared, so a customer who closes the tab
       // on the confirmation screen can still find the order — there is no
@@ -172,6 +197,7 @@ export default function CheckoutSheet({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex justify-end"
       role="dialog"
       aria-modal="true"
@@ -181,11 +207,11 @@ export default function CheckoutSheet({
         type="button"
         aria-label="Back to cart"
         onClick={onClose}
-        className="absolute inset-0 bg-[rgba(4,3,8,0.72)] backdrop-blur-[3px]"
+        className="absolute inset-0 bg-[rgba(8,14,32,0.45)] backdrop-blur-[3px]"
       />
 
-      <aside className="glass-strong relative flex h-full w-full max-w-md flex-col border-l border-[rgba(212,175,55,0.2)] shadow-2xl">
-        <header className="flex items-center gap-2 border-b border-[var(--color-line)] px-4 py-3.5">
+      <aside className="glass-strong relative flex h-dvh w-full max-w-md flex-col sm:rounded-l-3xl">
+        <header className="flex items-center gap-2 px-4 py-3.5">
           <button type="button" onClick={onClose} aria-label="Back to cart" className="btn-icon">
             <ArrowLeft className="h-6 w-6" aria-hidden />
           </button>
@@ -197,8 +223,9 @@ export default function CheckoutSheet({
             <Field
               label="Full name"
               error={fieldErrors.customer_name}
-              input={
+              input={(a11y) => (
                 <input
+                  {...a11y}
                   ref={nameRef}
                   className={`field ${fieldErrors.customer_name ? 'field-invalid' : ''}`}
                   value={details.customer_name}
@@ -206,15 +233,16 @@ export default function CheckoutSheet({
                   autoComplete="name"
                   placeholder="Lalrinsangi"
                 />
-              }
+              )}
             />
 
             <Field
               label="Mobile number"
               hint="The rider will call this number."
               error={fieldErrors.customer_phone}
-              input={
+              input={(a11y) => (
                 <input
+                  {...a11y}
                   ref={phoneRef}
                   className={`field ${fieldErrors.customer_phone ? 'field-invalid' : ''}`}
                   value={details.customer_phone}
@@ -223,14 +251,15 @@ export default function CheckoutSheet({
                   autoComplete="tel"
                   placeholder="98123 45678"
                 />
-              }
+              )}
             />
 
             <Field
               label="Delivery address"
               error={fieldErrors.customer_address}
-              input={
+              input={(a11y) => (
                 <textarea
+                  {...a11y}
                   ref={addressRef}
                   className={`field min-h-24 resize-y ${fieldErrors.customer_address ? 'field-invalid' : ''}`}
                   value={details.customer_address}
@@ -238,34 +267,36 @@ export default function CheckoutSheet({
                   autoComplete="street-address"
                   placeholder="House / flat, street, locality"
                 />
-              }
+              )}
             />
 
             <Field
               label="Landmark"
               optional
               hint="A nearby shop or hall makes a 15-minute delivery far more likely."
-              input={
+              input={(a11y) => (
                 <input
+                  {...a11y}
                   className="field"
                   value={details.customer_landmark}
                   onChange={(event) => update('customer_landmark', event.target.value)}
                   placeholder="Near Chanmari YMA hall"
                 />
-              }
+              )}
             />
 
             <Field
               label="Note for the rider"
               optional
-              input={
+              input={(a11y) => (
                 <input
+                  {...a11y}
                   className="field"
                   value={details.delivery_notes}
                   onChange={(event) => update('delivery_notes', event.target.value)}
                   placeholder="Call on arrival, gate is locked"
                 />
-              }
+              )}
             />
 
             <div className="card flex items-center gap-3 bg-[var(--color-surface-sunken)] p-3.5">
@@ -290,6 +321,18 @@ export default function CheckoutSheet({
           </div>
 
           <div className="mt-auto border-t border-[var(--color-line)] px-4 py-3.5">
+            {/* The speed, restated at the moment of committing. This footer
+                used to show a grand total and nothing else, so a customer who
+                chose a tier back in the cart got no confirmation of it on the
+                screen where they actually pay. Read-only — changing it here
+                would need a mid-form re-quote and a second confirmation. */}
+            <div className="mb-2 flex items-center justify-between text-sm text-[var(--color-ink-faint)]">
+              <span className="flex items-center gap-1.5">
+                <Timer className="h-4 w-4 text-[var(--color-brand-500)]" aria-hidden />
+                {tier.label} delivery
+              </span>
+              <span>in {quote?.promised_minutes ?? tier.promise_minutes} minutes</span>
+            </div>
             <div className="mb-3 flex items-center justify-between text-xl font-extrabold">
               <span>To pay</span>
               <span className="tabular-nums">{formatMoneyExact(quote?.grand_total ?? 0)}</span>
@@ -314,6 +357,17 @@ export default function CheckoutSheet({
   );
 }
 
+/**
+ * Attributes that tie a control to its own error or hint text.
+ *
+ * Handed to the caller rather than guessed at, because only the caller knows
+ * which element is the control.
+ */
+interface FieldInputProps {
+  'aria-invalid'?: true;
+  'aria-describedby'?: string;
+}
+
 function Field({
   label,
   hint,
@@ -326,8 +380,22 @@ function Field({
   error?: string;
   /** Marked in the label, not only in the hint — see below. */
   optional?: boolean;
-  input: React.ReactNode;
+  /**
+   * A render prop rather than a node, so the control can be given
+   * `aria-invalid` and `aria-describedby`.
+   *
+   * Wrapping the input in the `<label>` associates the *label* with it, and
+   * that part already worked. What did not: the error below is `role="alert"`,
+   * so it is announced once when it appears and then belongs to nothing. A
+   * screen-reader user who tabbed back to a rejected field heard "Mobile
+   * number, edit" and no reason — on the one form that takes their money.
+   */
+  input: (props: FieldInputProps) => React.ReactNode;
 }) {
+  const id = useId();
+  const messageId = `${id}-message`;
+  const hasMessage = Boolean(error || hint);
+
   return (
     <label className="block">
       <span className="mb-1.5 flex items-baseline gap-2 text-base font-bold text-[var(--color-ink)]">
@@ -340,16 +408,22 @@ function Field({
           <span className="text-sm font-medium text-[var(--color-ink-faint)]">optional</span>
         )}
       </span>
-      {input}
+      {input({
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': hasMessage ? messageId : undefined,
+      })}
       {error ? (
         <span
+          id={messageId}
           role="alert"
           className="mt-1.5 block text-sm font-semibold text-[var(--color-danger-600)]"
         >
           {error}
         </span>
       ) : hint ? (
-        <span className="mt-1.5 block text-sm text-[var(--color-ink-faint)]">{hint}</span>
+        <span id={messageId} className="mt-1.5 block text-sm text-[var(--color-ink-faint)]">
+          {hint}
+        </span>
       ) : null}
     </label>
   );

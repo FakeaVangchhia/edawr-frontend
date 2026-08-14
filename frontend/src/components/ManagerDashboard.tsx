@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -39,11 +39,53 @@ const COLUMNS: Array<{
   icon: typeof Clock;
   tone: string;
 }> = [
-  { status: 'Placed', label: 'New', icon: Clock, tone: 'bg-amber-100 text-amber-800' },
-  { status: 'Packing', label: 'Packing', icon: ChefHat, tone: 'bg-sky-100 text-sky-800' },
-  { status: 'Ready', label: 'Ready', icon: PackageCheck, tone: 'bg-violet-100 text-violet-800' },
-  { status: 'Dispatched', label: 'On the way', icon: Bike, tone: 'bg-indigo-100 text-indigo-800' },
+  {
+    status: 'Placed',
+    label: 'New',
+    icon: Clock,
+    tone: 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]',
+  },
+  {
+    status: 'Packing',
+    label: 'Packing',
+    icon: ChefHat,
+    tone: 'bg-[var(--color-brand-50)] text-[var(--color-brand-700)]',
+  },
+  {
+    status: 'Ready',
+    label: 'Ready',
+    icon: PackageCheck,
+    tone: 'bg-[var(--color-ok-50)] text-[var(--color-ok-600)]',
+  },
+  {
+    status: 'Dispatched',
+    label: 'On the way',
+    icon: Bike,
+    tone: 'bg-[var(--color-surface-inset)] text-[var(--color-ink-soft)]',
+  },
 ];
+
+/**
+ * Four columns and a three-colour palette, so the tones say URGENCY rather than
+ * category.
+ *
+ * These were `amber-100 / sky-100 / violet-100 / indigo-100` — the only stock
+ * Tailwind palette classes left in the app, and four hues this brand does not
+ * have. Rather than invent four more, the ramp runs from loud to quiet in the
+ * order a packer should care about:
+ *
+ *   New         solid amber   — the only column that shouts
+ *   Packing     amber wash
+ *   Ready       navy wash
+ *   On the way  grey          — needs nothing from anyone
+ *
+ * Ready was briefly a solid navy chip, which looked handsome and was wrong: it
+ * out-shouted the solid amber `New` beside it and inverted the whole ramp. One
+ * loud column on a board is far more scannable than four pastels were.
+ *
+ * Nothing is carried by colour alone — each column has its own icon and each
+ * pill repeats the status in words.
+ */
 
 /** What a manager can move an order to next. Mirrors Order.TRANSITIONS. */
 const NEXT_STATUS: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>> = {
@@ -193,30 +235,34 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
   const lateCount = orders.filter((order) => order.is_late).length;
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-sunken)]">
-      <header className="sticky top-0 z-10 glass-strong border-b border-[rgba(212,175,55,0.18)]">
-        <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <div className="min-h-dvh bg-[var(--color-surface-sunken)]">
+      <header className="sticky top-0 z-10 glass-strong">
+        <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-navy-900)] text-[var(--color-brand-500)]">
               <Warehouse className="h-5 w-5" aria-hidden />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold tracking-tight">eDawr Admin</h1>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-ink-faint)]">
+              <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">
+                eDawr Admin
+              </h1>
+              <p className="truncate text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-ink-faint)]">
                 Operations console
               </p>
             </div>
           </div>
 
-          <nav className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-line)] p-1">
+          {/* A filled segmented control rather than an outlined one — the same
+              recessed grey every other secondary surface uses. */}
+          <nav className="flex gap-1 rounded-xl bg-[var(--color-surface-inset)] p-1">
             {(['orders', 'products'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition-colors ${
                   activeTab === tab
-                    ? 'bg-gradient-to-br from-[#f4dc93] to-[#d4af37] text-[#12100a]'
-                    : 'text-[var(--color-ink-soft)] hover:bg-[rgba(255,250,235,0.06)]'
+                    ? 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)] shadow-[var(--shadow-xs)]'
+                    : 'text-[var(--color-ink-soft)] hover:bg-[var(--color-surface)]'
                 }`}
               >
                 {tab}
@@ -224,7 +270,13 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
             ))}
           </nav>
 
-          {headerActions ? <div className="ml-auto">{headerActions}</div> : null}
+          {/* `w-full` below `sm` so the account controls wrap onto their own
+              row instead of squeezing the wordmark to nothing on a phone. */}
+          {headerActions ? (
+            <div className="order-last w-full sm:order-none sm:ml-auto sm:w-auto">
+              {headerActions}
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -247,7 +299,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[rgba(255,250,235,0.05)] px-3 py-2 text-sm font-semibold">
+                <label className="flex min-h-[var(--tap-min)] cursor-pointer items-center gap-2 rounded-lg bg-[var(--color-surface-inset)] px-3 py-2 text-sm font-semibold">
                   <input
                     type="checkbox"
                     checked={showStalledOnly}
@@ -272,7 +324,7 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
             </div>
 
             {showStalledOnly && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <p className="rounded-lg border-l-4 border-[var(--color-brand-500)] bg-[var(--color-brand-50)] px-3 py-2.5 text-sm text-[var(--color-ink)]">
                 Orders every available rider has declined, or that are past their promised
                 time. Assign one manually to get them moving.
               </p>
@@ -294,7 +346,11 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
                 Everything is under control.
               </div>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-4">
+              /* One column on a phone, two on a tablet held either way, four on
+                 a desktop. It used to go straight from one to four at 1024px,
+                 which left an iPad in portrait scrolling through four stacked
+                 columns end to end to find one order. */
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {COLUMNS.map((column) => {
                   const bucket = grouped.get(column.status) ?? [];
                   const Icon = column.icon;
@@ -303,13 +359,13 @@ export default function ManagerDashboard({ headerActions }: ManagerDashboardProp
                       <h3 className="flex items-center gap-2 px-1 text-sm font-bold">
                         <Icon className="h-4 w-4" aria-hidden />
                         {column.label}
-                        <span className="ml-auto rounded-full bg-[rgba(255,250,235,0.08)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-faint)]">
+                        <span className="ml-auto rounded-full bg-[var(--color-surface-sunken)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-faint)]">
                           {bucket.length}
                         </span>
                       </h3>
 
                       {bucket.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-[var(--color-line)] px-3 py-6 text-center text-xs text-[var(--color-ink-faint)]">
+                        <p className="rounded-xl bg-[var(--color-surface-inset)]/60 px-3 py-6 text-center text-xs text-[var(--color-ink-faint)]">
                           Empty
                         </p>
                       )}
@@ -355,7 +411,19 @@ function OrderCard({
   const next = NEXT_STATUS[order.status];
 
   return (
-    <article className={`card p-3 ${order.is_late ? 'border-[#fca5a5]' : ''}`}>
+    // Two pixels of red, not one. On a white board a single pink hairline
+    // around a white card is the first thing lost at a glance, and "late" is
+    // the highest-value signal on the whole screen.
+    <article
+      /* Late orders get a red spine down the left edge rather than a red box.
+         It is the same signal — unmissable at a glance down a column — without
+         reintroducing the one outline the rest of the board does not have. */
+      className={`card p-3 ${
+        order.is_late
+          ? 'border-l-4 border-[var(--color-danger-600)] bg-[var(--color-danger-50)]'
+          : ''
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-[var(--color-ink-faint)]">
           #{order.id.toString().padStart(4, '0')}
@@ -370,6 +438,20 @@ function OrderCard({
       >
         <Timer className="h-3.5 w-3.5" aria-hidden />
         {order.is_late ? 'Past promise' : `${order.minutes_remaining} min left`}
+        {/* Beside the countdown, because the tier and the countdown are the
+            same prioritisation decision: a fifteen-minute order and a
+            forty-five-minute one sitting in the same column need packing in a
+            different order. The word is the badge — the amber fill is a second
+            signal, never the only one. */}
+        <span
+          className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            order.delivery_type === 'instant'
+              ? 'bg-[var(--color-brand-500)] text-[var(--color-navy-900)]'
+              : 'bg-[var(--color-surface-inset)] text-[var(--color-ink-soft)]'
+          }`}
+        >
+          {order.delivery_type_label}
+        </span>
         <span className="ml-auto font-medium text-[var(--color-ink-faint)]">
           {formatDateTime(order.created_at)}
         </span>
