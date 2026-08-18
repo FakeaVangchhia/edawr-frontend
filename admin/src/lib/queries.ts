@@ -1,0 +1,304 @@
+/**
+ * Every API call the console makes, named and typed, in one file.
+ *
+ * Components call these rather than `authRequest('/api/...')` directly, so the
+ * set of endpoints this app depends on can be read in one place — which is also
+ * the list to check against `backend/api/urls.py` after a backend change.
+ */
+
+import { authPage, authRequest, publicRequest, query } from '@/lib/api';
+import type {
+  AdminAccount,
+  AnalyticsSummary,
+  AuditEntry,
+  CategoryShare,
+  Category,
+  ConsoleSession,
+  DeliveryPerformance,
+  InventoryHealth,
+  Order,
+  OrderStatus,
+  Product,
+  RevenuePoint,
+  StaffUser,
+  StoreConfig,
+  TopProduct,
+} from '@/types';
+
+/* --- auth ---------------------------------------------------------------- */
+
+interface LoginResponse {
+  access_token: string;
+  email: string;
+  name: string;
+  role: ConsoleSession['role'];
+}
+
+export async function login(email: string, password: string): Promise<ConsoleSession> {
+  const data = await publicRequest<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: { email: email.trim().toLowerCase(), password },
+  });
+  return {
+    email: data.email,
+    name: data.name || '',
+    role: data.role,
+    accessToken: data.access_token,
+  };
+}
+
+/**
+ * Verify a stored token and take a fresh one.
+ *
+ * `/api/auth/me` re-issues on every call, which is how a working session
+ * extends itself. It also returns the *current* role, so an account promoted or
+ * demoted since sign-in gets the right navigation on the next page load without
+ * having to sign out.
+ */
+export async function verifySession(): Promise<ConsoleSession> {
+  const data = await authRequest<LoginResponse>('/api/auth/me');
+  return {
+    email: data.email,
+    name: data.name || '',
+    role: data.role,
+    accessToken: data.access_token,
+  };
+}
+
+/* --- products ------------------------------------------------------------ */
+
+export interface ProductFilters {
+  q?: string;
+  category?: string;
+  status?: string;
+  stock?: 'low' | 'out' | '';
+  limit?: number;
+  offset?: number;
+}
+
+export function listProducts(filters: ProductFilters = {}, signal?: AbortSignal) {
+  return authPage<Product>(`/api/products${query({ ...filters })}`, { signal });
+}
+
+export function createProduct(body: Partial<Product>) {
+  return authRequest<Product>('/api/products', { method: 'POST', body });
+}
+
+/**
+ * A partial update. **Use this, not `replaceProduct`, for anything the console
+ * edits** — it writes only the fields sent, under a row lock, so a sale landing
+ * while the editor was open is not overwritten. See the backend's `PATCH`.
+ */
+export function updateProduct(id: number, body: Partial<Product>) {
+  return authRequest<Product>(`/api/products/${id}`, { method: 'PATCH', body });
+}
+
+/** Full replacement. Retained for completeness; prefer `updateProduct`. */
+export function replaceProduct(id: number, body: Partial<Product>) {
+  return authRequest<Product>(`/api/products/${id}`, { method: 'PUT', body });
+}
+
+export function deleteProduct(id: number) {
+  return authRequest<{ success: boolean }>(`/api/products/${id}`, { method: 'DELETE' });
+}
+
+export async function uploadProductImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append('file', file);
+  const data = await authRequest<{ image_url: string }>(
+    '/api/uploads/products/image',
+    { method: 'POST', body: form },
+  );
+  return data.image_url;
+}
+
+/* --- categories ---------------------------------------------------------- */
+
+export function listCategories(params: { q?: string; limit?: number } = {}, signal?: AbortSignal) {
+  return authPage<Category>(`/api/categories${query({ limit: 200, ...params })}`, { signal });
+}
+
+export function createCategory(body: Partial<Category>) {
+  return authRequest<Category>('/api/categories', { method: 'POST', body });
+}
+
+/**
+ * The category PUT is **not** partial: an omitted field is reset to its
+ * default. Callers must send the whole row, which is what `categoryPutBody`
+ * exists to build — omitting `image_url` or `sort_order` silently wipes them.
+ */
+export function updateCategory(id: number, body: Partial<Category>) {
+  return authRequest<Category>(`/api/categories/${id}`, { method: 'PUT', body });
+}
+
+export function deleteCategory(id: number) {
+  return authRequest<{ success: boolean }>(`/api/categories/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Build a complete body for the non-partial category PUT.
+ *
+ * Every optional field is named explicitly, including the ones the form did not
+ * touch. This is the whole reason the function exists: `PUT` applies serializer
+ * defaults to anything absent, so a form that edits only the name and posts
+ * `{name}` clears the category's image and resets its position in the rail.
+ * Nothing errors; the rail just quietly loses its pictures.
+ */
+export function categoryPutBody(
+  category: Category,
+  changes: Partial<Category>,
+): Record<string, unknown> {
+  const merged = { ...category, ...changes };
+  return {
+    name: merged.name,
+    description: merged.description ?? null,
+    parent_id: merged.parent_id ?? null,
+    image_url: merged.image_url ?? null,
+    sort_order: merged.sort_order ?? 0,
+    status: merged.status ?? 'active',
+  };
+}
+
+/* --- orders -------------------------------------------------------------- */
+
+export interface OrderFilters {
+  status?: string;
+  open?: boolean;
+  stalled?: boolean;
+  q?: string;
+  rider?: number | string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function listOrders(filters: OrderFilters = {}, signal?: AbortSignal) {
+  return authPage<Order>(`/api/orders${query({ ...filters })}`, { signal });
+}
+
+export function advanceOrder(id: number, status: OrderStatus, reason?: string) {
+  return authRequest<Order>(`/api/orders/${id}/status`, {
+    method: 'PATCH',
+    body: reason ? { status, reason } : { status },
+  });
+}
+
+export function assignOrder(id: number, riderId: number) {
+  return authRequest<Order>(`/api/orders/${id}/assign`, {
+    method: 'POST',
+    body: { delivery_boy_id: riderId },
+  });
+}
+
+/* --- staff --------------------------------------------------------------- */
+
+export function listStaff(
+  params: { role?: string; q?: string; active?: string } = {},
+  signal?: AbortSignal,
+) {
+  return authPage<StaffUser>(`/api/users${query({ limit: 200, ...params })}`, { signal });
+}
+
+export function listRiders(signal?: AbortSignal) {
+  return authRequest<StaffUser[]>('/api/delivery/riders', { signal });
+}
+
+export function createStaff(body: Partial<StaffUser> & { pin?: string }) {
+  return authRequest<StaffUser>('/api/users', { method: 'POST', body });
+}
+
+/** The staff PUT *is* partial on the backend, deliberately: a write-only `pin`
+ *  cannot be read back, so replace semantics would clear it on every save. */
+export function updateStaff(id: number, body: Partial<StaffUser> & { pin?: string }) {
+  return authRequest<StaffUser>(`/api/users/${id}`, { method: 'PUT', body });
+}
+
+export function deleteStaff(id: number) {
+  return authRequest<{ success: boolean; detail?: string }>(`/api/users/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/* --- console accounts (Admin only) --------------------------------------- */
+
+export function listAccounts(params: { q?: string; role?: string } = {}, signal?: AbortSignal) {
+  return authPage<AdminAccount>(`/api/admins${query({ limit: 200, ...params })}`, { signal });
+}
+
+export function createAccount(body: {
+  email: string;
+  name?: string;
+  role: string;
+  password: string;
+}) {
+  return authRequest<AdminAccount>('/api/admins', { method: 'POST', body });
+}
+
+export function updateAccount(id: number, body: Partial<AdminAccount> & { password?: string }) {
+  return authRequest<AdminAccount>(`/api/admins/${id}`, { method: 'PUT', body });
+}
+
+export function deactivateAccount(id: number) {
+  return authRequest<{ success: boolean; detail?: string }>(`/api/admins/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/* --- audit (Admin only) --------------------------------------------------- */
+
+export interface AuditFilters {
+  actor?: string;
+  entity?: string;
+  action?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function listAudit(filters: AuditFilters = {}, signal?: AbortSignal) {
+  return authPage<AuditEntry>(`/api/audit${query({ ...filters })}`, { signal });
+}
+
+/* --- analytics ------------------------------------------------------------ */
+
+export interface Window {
+  from?: string;
+  to?: string;
+}
+
+export function analyticsSummary(range: Window = {}, signal?: AbortSignal) {
+  return authRequest<AnalyticsSummary>(`/api/analytics/summary${query({ ...range })}`, { signal });
+}
+
+export function analyticsRevenue(range: Window = {}, signal?: AbortSignal) {
+  return authRequest<RevenuePoint[]>(`/api/analytics/revenue${query({ ...range })}`, { signal });
+}
+
+export function analyticsProducts(
+  range: Window & { limit?: number; direction?: 'top' | 'bottom' } = {},
+  signal?: AbortSignal,
+) {
+  return authRequest<TopProduct[]>(`/api/analytics/products${query({ ...range })}`, { signal });
+}
+
+export function analyticsCategories(range: Window = {}, signal?: AbortSignal) {
+  return authRequest<CategoryShare[]>(`/api/analytics/categories${query({ ...range })}`, { signal });
+}
+
+export function analyticsDelivery(range: Window = {}, signal?: AbortSignal) {
+  return authRequest<DeliveryPerformance>(`/api/analytics/delivery${query({ ...range })}`, { signal });
+}
+
+/** Stock is a fact about now, so this endpoint takes no date range. */
+export function analyticsInventory(signal?: AbortSignal) {
+  return authRequest<InventoryHealth>('/api/analytics/inventory', { signal });
+}
+
+/* --- store config --------------------------------------------------------- */
+
+export function storeConfig(signal?: AbortSignal) {
+  return publicRequest<StoreConfig>('/api/store/config', { signal });
+}

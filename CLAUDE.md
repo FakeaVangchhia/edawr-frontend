@@ -7,10 +7,16 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 eDawr is a **quick-commerce** grocery platform for Aizawl, Mizoram: customers
 order from a web storefront and a rider delivers on a 15-minute promise.
 
-- `frontend/` — Next.js 16 (App Router, React 19, Tailwind v4). Storefront +
-  admin console. **UI only — it serves no API routes.**
+- `frontend/` — Next.js 16 (App Router, React 19, Tailwind v4). The customer
+  storefront. **UI only — it serves no API routes.**
+- `admin/` — Next.js 16, the **staff console** for Admins and Managers. A
+  separate package with its own design system and its own deployment. UI only.
 - `backend/` — Django 6 + DRF + SQLite. **This is the API.**
 - `mobile/` — Expo / React Native (SDK 54), the rider app.
+
+`frontend/` still contains an older single-route admin screen at `/admin`. The
+console in `admin/` supersedes it; the old one has no role checks and should be
+removed once the new one has been exercised in production.
 
 Supabase and the WhatsApp ordering module were removed. The backend was migrated
 from FastAPI/SQLAlchemy/Pydantic to Django/DRF; no FastAPI code remains. Do not
@@ -32,18 +38,30 @@ uv run manage.py migrate                 # create/update the schema
 uv run manage.py seed                    # load sample data (deletes all rows)
 uv run manage.py runserver 8000          # use 0.0.0.0:8000 for the phone
 uv run manage.py makemigrations          # after editing api/models.py
-uv run manage.py test                    # 160 tests, ~1s
+uv run manage.py test                    # 275 tests, ~2s
 uv run manage.py check --deploy          # before shipping
 ```
 
 Frontend (from `frontend/`): `npm run dev` · `npm run build` · `npm run lint` ·
-`npm test` (vitest, 27 tests)
+`npm test` (vitest)
+Console (from `admin/`): the same four, on **port 3001**. It has
+`@testing-library/react` installed, so unlike `frontend/` it can render
+components in tests.
 Mobile (from `mobile/`): `npm start` · `npx expo-doctor`
 
-**The mobile app has no tests, and the frontend has no component or end-to-end
-tests** — only pure logic (cart store, money formatting). That is the largest
-open gap; if you touch either package substantially, consider whether you can
-leave a test behind.
+Two extra management commands exist because `seed` is destructive and cannot be
+re-run on a live database:
+```bash
+uv run manage.py seed_admin --email you@example.com --password '...' --role admin
+uv run manage.py demo_clear --dry-run     # then without the flag
+```
+
+**The mobile app has no tests, and `frontend/` has no component or end-to-end
+tests** — only pure logic (cart store, money formatting), because
+`@testing-library/react` is not installed there. `admin/` does install it and
+does render components in tests. End-to-end coverage is still missing
+everywhere; if you touch a package substantially, consider whether you can leave
+a test behind.
 
 ## The rules that matter
 
@@ -105,6 +123,29 @@ traffic.
 - A valid token of the wrong kind gets **403**, not 401. 401 means "I don't know
   who you are" and is what makes the web app clear its stored session; clearing
   it on 403 would sign an admin out of pages they merely lack rights for.
+
+### Two console roles, decided by the row and never by the token
+`AdminUser.role` is `admin` or `manager`. A **Manager** runs the store: products,
+categories, orders, riders, prices, settings, every figure in analytics. An
+**Admin** adds exactly two things — `/api/admins` (creating accounts and changing
+roles) and `/api/audit`.
+
+- `IsAdmin` means "an active AdminUser", i.e. either role. `IsOwnerAdmin` is the
+  Admin-only guard. **Do not change `IsAdmin`** — `test_auth.py` asserts the
+  401-vs-403 contract through it.
+- **The role is not a JWT claim.** `AdminJWTAuthentication` re-reads the row on
+  every request, which is what makes `is_active` an immediate revocation; the
+  role inherits that, so a demotion takes effect on the next request rather than
+  in twelve hours. Adding a role claim would trade that for a stale copy.
+- `admins.py` refuses, with **409**, to let you change your own role, deactivate
+  yourself, or demote the last active Admin. Without the third, one click leaves
+  the console unadministrable.
+
+### Every mutating admin view records who did it
+`api/audit.py::record(...)` writes one `AuditLog` row. It never raises — an
+audit failure must not fail the request that already committed — and it strips
+anything named like a credential, so a PIN reset is logged as `pin_reset` rather
+than as a PIN.
 
 ### Public endpoints are the security boundary
 `api/urls.py` marks which routes are public. Checkout and tracking are
