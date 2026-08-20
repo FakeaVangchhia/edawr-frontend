@@ -50,6 +50,19 @@ export function fetchProducts(
   );
 }
 
+/**
+ * One product, for its own page.
+ *
+ * A product page reached by a shared link or a reload has no list in memory to
+ * read from, and fetching the whole catalogue to find one row works at seed
+ * scale and falls over at a real one. Throws `ApiError` with status 404 for a
+ * product that is unknown or no longer for sale — the caller renders
+ * `not-found` on that.
+ */
+export function fetchProduct(id: number, signal?: AbortSignal): Promise<StoreProduct> {
+  return request<StoreProduct>(`/api/store/products/${id}`, { signal });
+}
+
 /** The wire format the checkout and quote endpoints expect. */
 export function toBasketItems(lines: CartLine[]) {
   return lines.map((line) => ({

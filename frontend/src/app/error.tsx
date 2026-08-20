@@ -1,17 +1,17 @@
-﻿'use client';
+'use client';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
 
 /**
- * The last line of defence for a render that threw.
+ * The route error boundary.
  *
- * Without this file, an uncaught error in any client component blanks the whole
- * page — the customer sees white, with no way back and nothing to report. This
- * turns that into something they can act on.
+ * It reports to the console and nowhere else. There is no error-reporting
+ * endpoint in this project, and `src/proxy.ts` would block a request to a
+ * third-party collector anyway — a boundary that silently fails to report is
+ * worse than one that never claimed to.
  */
-export default function GlobalError({
+export default function Error({
   error,
   reset,
 }: {
@@ -19,29 +19,32 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // The place to wire up Sentry or similar. `digest` is the server-side id
-    // Next.js assigns, which is what ties this screen to a stack trace in the
-    // logs — the message itself is deliberately scrubbed in production builds.
-    console.error('Unhandled error', error.digest ?? '', error);
+    console.error(error);
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[var(--color-surface-sunken)] px-4">
-      <div className="card flex max-w-sm flex-col items-center gap-3 p-8 text-center">
-        <AlertTriangle className="h-9 w-9 text-[var(--color-danger-600)]" aria-hidden />
-        <h1 className="text-lg font-extrabold">Something went wrong</h1>
-        <p className="text-sm text-[var(--color-ink-soft)]">
-          The store hit an unexpected problem. Your cart is safe.
+    <div className="container-page grid min-h-[60vh] place-items-center py-16 text-center">
+      <div className="max-w-md">
+        <h1 className="text-2xl font-semibold tracking-tight">This page didn&apos;t load</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Something went wrong on our end. Your basket is safe — try again, or head back home.
         </p>
         {error.digest && (
-          <p className="text-xs text-[var(--color-ink-faint)]">Reference: {error.digest}</p>
+          <p className="num mt-3 text-xs text-muted-foreground">Reference: {error.digest}</p>
         )}
-        <div className="mt-2 flex gap-2">
-          <button type="button" onClick={reset} className="btn-primary">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift"
+          >
             Try again
           </button>
-          <Link href="/" className="btn-ghost">
-            Back to store
+          <Link
+            href="/"
+            className="inline-flex h-12 items-center rounded-full border border-border px-7 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            Go home
           </Link>
         </div>
       </div>

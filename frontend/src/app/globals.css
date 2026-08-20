@@ -1,671 +1,224 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/**
- * Design tokens — "amber & navy".
+/*
+ * eDawr design system — Apple-inspired quick commerce.
  *
- * Three colours: #F5A623 golden amber, #080E20 deep navy, #FFFFFF pure white.
- * Committed to light only, as the previous theme was committed to dark. A
- * second variant doubles the review surface for every screen.
+ * Palette: Deep Navy #080E20, Golden Amber #F5A623, Pure White #FFFFFF.
+ * Light theme only. A second variant doubles the review surface for every
+ * screen, and this store has one job on one kind of device.
  *
- * THE CONSTRAINT THAT SHAPES EVERYTHING BELOW: #F5A623 on #FFFFFF measures
- * 2.03:1. It fails AA for text by a factor of two and fails the 3:1 floor for
- * an icon or a control boundary. So amber is never ink on this page. Amber is
- * a FILL, and what sits on it is navy — #080E20 on #F5A623 measures 9.48:1,
- * which is better contrast than the old dark theme's gold button had. The
- * palette still reads as amber-led because amber takes area rather than
- * strokes: the buttons, the stepper, the badges, the selected chip.
+ * The constraint that shapes the palette: #F5A623 on #FFFFFF measures 2.03:1.
+ * It fails AA for text by a factor of two. So amber is a FILL, never ink —
+ * navy on amber measures 9.48:1. The design still reads as amber-led because
+ * amber takes area rather than strokes: the badges, the chips, the accents.
+ * `--amber-foreground` is navy for exactly this reason; do not put amber text
+ * on white.
  *
- * The one exception is `--color-brand-700`, a darkened amber reserved for the
- * rare place a wash needs a label in its own hue. It is the only amber in this
- * file that may touch text, and only at 15px semibold or larger.
- *
- * The ink is navy softened off pure #080E20. Pure navy on pure white measures
- * 19.2:1 — past the point where more contrast helps and into the range where it
- * hurts: a maximum-contrast edge blooms for anyone with astigmatism or an older
- * eye's scattering lens, which is most of the people this store has to serve.
- * Backing off to ~15:1 removes that glare and costs no legibility. Pure #080E20
- * is still used, but as a SURFACE and as ink on amber, where the pairing is not
- * a maximal edge.
- *
- * Green is gone with the dark theme. Red stays, because an error a customer
- * cannot spot is an error they submit twice.
- *
- * The token NAMES are unchanged wherever a component already used them, so the
- * storefront, the admin console and the error pages re-theme by reading new
- * values through the same names rather than by a hundred edits that would each
- * be a chance to miss one.
+ * Ported from the swift-cart prototype. The token NAMES follow the shadcn
+ * convention, which is what lets the four vendored components in
+ * `components/ui/` work unmodified.
  */
-@theme {
-  /* ---- ground & surfaces ----------------------------------------------
-   * Three surface levels, and they are the entire structural vocabulary of
-   * this design. Nothing is outlined; a thing is above the page, on it, or
-   * recessed into it:
-   *
-   *   sunken   the page ground        — a 2% navy tint
-   *   surface  cards, panels, drawers — pure white, lifted by a shadow
-   *   inset    fields, wells, chips   — recessed back into the panel
-   *
-   * The page ground is deliberately NOT #FFFFFF. Borderless only works when
-   * there is something for the white to be white against; on a white-on-white
-   * page every panel would need an outline to exist at all, which is the thing
-   * this vocabulary exists to avoid. */
-  --color-surface-sunken: #f4f6fa; /* the page ground */
-  --color-surface: #ffffff;        /* cards, panels, drawers */
-  --color-surface-inset: #e9eef6;  /* fields, wells, secondary buttons */
-  --color-surface-hover: #dde5f0;  /* a filled control under the pointer */
 
-  /* Dividers only — a rule *inside* a panel separating two groups of content,
-     never a rectangle around something. There is no border token, because
-     nothing in this design has a border. */
-  --color-line: #e6ebf3;
+@theme inline {
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Segoe UI", sans-serif;
 
-  /* ---- ink -------------------------------------------------------------
-   * Three tiers, all navy. The faint tier is held at AAA on purpose: it
-   * carries the unit weights and pack sizes an older shopper most needs to
-   * read, and small secondary type is the first thing to fail them. */
-  --color-ink: #1a2440;            /* body + headings   ~15:1 on white */
-  --color-ink-soft: #3d4967;       /* secondary         ~9:1 */
-  --color-ink-faint: #4a5670;      /* tertiary          ~7:1 — AAA, hold it */
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+  --radius-4xl: calc(var(--radius) + 28px);
 
-  /* ---- amber -----------------------------------------------------------
-   * Low numbers are pale washes, 500 is the brand itself, 700 is the only
-   * value here that may be used as text. That is a normal ramp again — the
-   * previous theme inverted it because its surfaces were dark. */
-  --color-brand-50: #fef6e7;       /* amber wash panel */
-  --color-brand-100: #fceacb;
-  --color-brand-200: #f8d08a;      /* wash borders, selection */
-  --color-brand-500: #f5a623;      /* THE brand colour. Fill only. */
-  --color-brand-600: #de9110;      /* hover fill, amber borders */
-  --color-brand-700: #8a5a00;      /* amber as text — 5.9:1, ≥15px semibold */
-  --color-brand-900: #5c3b00;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-amber: var(--amber);
+  --color-amber-foreground: var(--amber-foreground);
+  --color-amber-soft: var(--amber-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-ring-offset-background: var(--background);
 
-  /* ---- navy as a surface -----------------------------------------------
-   * The exclusive moments: the tracking hero, the admin login panel. White
-   * and amber both sit on this cleanly. */
-  --color-navy-900: #080e20;
-  --color-navy-800: #101a35;
-  --color-navy-700: #1c2a4d;
+  --shadow-card: 0 1px 2px oklch(0.14 0.04 264 / 0.04), 0 8px 24px oklch(0.14 0.04 264 / 0.05);
+  --shadow-lift: 0 2px 6px oklch(0.14 0.04 264 / 0.06), 0 20px 44px oklch(0.14 0.04 264 / 0.1);
+  --shadow-amber: 0 8px 24px oklch(0.78 0.15 68 / 0.32);
 
-  /* ---- motion ----------------------------------------------------------
-   * One easing curve and three durations, so every transition in the app
-   * decelerates on the same arc. The curve is a gentle ease-out: motion that
-   * starts promptly and settles slowly reads as smooth, whereas the stock
-   * `ease` finishes abruptly and reads as a snap. */
-  --ease-glide: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --duration-quick: 200ms;
-  --duration-glide: 280ms;
-  --duration-settle: 420ms;
+  --ease-apple: cubic-bezier(0.32, 0.72, 0, 1);
+}
 
-  /* ---- state -----------------------------------------------------------
-   * `ok` is the confirmed/positive tier — navy on a pale navy wash. It was
-   * green, and green is not in this palette. Renamed rather than re-pointed,
-   * because a token called `fresh` holding a navy is a trap for the next
-   * person reading it. */
-  --color-ok-600: #1c2a4d;
-  --color-ok-50: #edf1f8;
+:root {
+  --radius: 1rem;
 
-  /* Red survives the three-colour rule. An out-of-stock line, a failed field
-     and a cancelled order all have to be findable at a glance, and weight
-     alone does not do that at the edge of vision. */
-  --color-danger-600: #b3261e;     /* ~6:1 on white */
-  --color-danger-50: #fdecea;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.16 0.038 264);
+  --surface: oklch(0.978 0.003 264);
 
-  /* ---- elevation -------------------------------------------------------
-   * New. A dark UI separates panels with a glow; a light one has no glow to
-   * lean on and needs real shadows. All four are tinted navy rather than
-   * neutral black, which is what stops a light page looking grey and dirty
-   * where things overlap. */
-  --shadow-xs: 0 1px 2px rgba(8, 14, 32, 0.06);
-  --shadow-sm: 0 2px 8px -2px rgba(8, 14, 32, 0.08), 0 1px 2px rgba(8, 14, 32, 0.04);
-  --shadow-md: 0 8px 24px -8px rgba(8, 14, 32, 0.12), 0 2px 6px rgba(8, 14, 32, 0.05);
-  --shadow-lg: 0 24px 56px -20px rgba(8, 14, 32, 0.22), 0 4px 12px rgba(8, 14, 32, 0.06);
-  --shadow-amber: 0 12px 28px -12px rgba(245, 166, 35, 0.45);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.038 264);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.038 264);
 
-  /* ---- type scale ------------------------------------------------------
-   * Carried over unchanged from the legibility pass. Tailwind v4 generates the
-   * `text-*` utilities from these, so the whole ramp sits one step above stock:
-   * 13px is the floor and is reserved for badges, anything carrying a sentence
-   * starts at 15px, body is 17px. Premium is not a licence to shrink the
-   * type — a price nobody can read is not exclusive, it is just inaccessible. */
-  --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.15rem;
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.35rem;
-  --text-base: 1.0625rem;
-  --text-base--line-height: 1.6rem;
-  --text-lg: 1.1875rem;
-  --text-lg--line-height: 1.6rem;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.8rem;
-  --text-2xl: 1.625rem;
-  --text-2xl--line-height: 2rem;
+  /* Deep Navy #080E20 */
+  --primary: oklch(0.164 0.038 267);
+  --primary-foreground: oklch(1 0 0);
 
-  /* WCAG 2.5.5. A hand that shakes needs every one of these pixels. */
-  --tap-min: 2.75rem;
+  --secondary: oklch(0.968 0.004 264);
+  --secondary-foreground: oklch(0.164 0.038 267);
+
+  --muted: oklch(0.968 0.004 264);
+  --muted-foreground: oklch(0.53 0.02 264);
+
+  --accent: oklch(0.962 0.005 264);
+  --accent-foreground: oklch(0.164 0.038 267);
+
+  /* Golden Amber #F5A623. Its foreground is navy — see the note above. */
+  --amber: oklch(0.783 0.152 68.5);
+  --amber-foreground: oklch(0.164 0.038 267);
+  --amber-soft: oklch(0.972 0.035 78);
+
+  /* Status. Delivered is green, cancelled and errors are red — an error a
+     customer cannot spot is an error they submit twice. */
+  --success: oklch(0.52 0.13 155);
+  --success-soft: oklch(0.96 0.03 155);
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-soft: oklch(0.968 0.02 27);
+
+  --border: oklch(0.925 0.005 264);
+  --input: oklch(0.925 0.005 264);
+  --ring: oklch(0.783 0.152 68.5);
 }
 
 @layer base {
-  :root {
-    color-scheme: light;
+  * {
+    border-color: var(--color-border);
   }
 
   html {
-    scroll-behavior: smooth;
-    background: var(--color-surface-sunken);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    margin: 0;
-    min-width: 320px;
-    background: var(--color-surface-sunken);
-    color: var(--color-ink);
-    font-family: var(--font-ibm-plex), ui-sans-serif, system-ui, sans-serif;
-    font-size: var(--text-base);
-    line-height: 1.6;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    letter-spacing: -0.011em;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-manrope), var(--font-ibm-plex), ui-sans-serif, sans-serif;
-    letter-spacing: -0.02em;
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.03em;
   }
 
-  button, input, select, textarea {
-    font: inherit;
-  }
-
-  ::selection {
-    background: var(--color-brand-200);
-    color: var(--color-ink);
-  }
-
-  /**
-   * The focus ring is navy, not amber.
-   *
-   * Amber was the obvious choice — it is the brand colour and the old theme's
-   * ring was gold. But #F5A623 against white is 2.03:1, and WCAG 1.4.11 asks
-   * for 3:1 on a focus indicator. An amber ring on a white card is a ring that
-   * a low-vision keyboard user cannot find, on the one cue that tells them
-   * where they are. Navy clears it on white, on the amber fills, and on every
-   * wash in this file, so one colour covers the whole app.
-   *
-   * Three layers, each doing a different job: the navy outline carries the
-   * contrast, the white ring keeps the outline visible when focus lands on a
-   * navy panel (where navy-on-navy would vanish), and the amber halo is the
-   * brand — decorative, and load-bearing for nothing.
-   */
+  /* Every interactive element gets the same visible focus ring. The amber is a
+     fill here too — it surrounds rather than colours the text. */
   :focus-visible {
-    outline: 3px solid var(--color-navy-900);
+    outline: 2px solid var(--color-ring);
     outline-offset: 2px;
-    box-shadow:
-      0 0 0 2px #ffffff,
-      0 0 0 6px rgba(245, 166, 35, 0.35);
   }
 }
 
-@layer components {
-  /* ======================================================================
-   * Surfaces — DEPTH, NOT OUTLINES
-   *
-   * Nothing in this file draws a box around itself. A panel is separated from
-   * the page by being a lighter surface that sits above it, and that is all:
-   * white fill, a soft navy-tinted shadow, and the page's own tint showing
-   * around it. No 1px line anywhere.
-   *
-   * This is the whole reason the page ground is #F4F6FA rather than #FFFFFF.
-   * Borderless only works when there is something for the white to be white
-   * *against* — on a white-on-white page every panel would need an outline to
-   * exist at all, which is the thing being removed.
-   *
-   * Glass survives in one place only, `.glass-strong`: a sticky element with
-   * content genuinely scrolling underneath it. Everywhere else a backdrop blur
-   * over white blurs white, at the cost of a compositor layer per panel.
-   * ==================================================================== */
-  .glass {
-    position: relative;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-sm);
-  }
+/* The one page gutter. Every route uses it, so the columns line up from the
+   header through the content to the footer. */
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 80rem;
+  padding-inline: 1.25rem;
+}
 
-  .glass-strong {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(20px) saturate(120%);
-    -webkit-backdrop-filter: blur(20px) saturate(120%);
-    box-shadow: var(--shadow-lg);
-  }
+/* Tabular figures for anything that is a number a customer compares: prices,
+   quantities, countdowns. Proportional digits make a column of rupees ragged. */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
 
-  /* Kept as a token for the rare place a divider genuinely helps — but it is
-     no longer used as a header underline. A full-bleed amber rule across the
-     viewport read as a seam through the page rather than as a brand mark. */
-  .rule-gold {
-    background: var(--color-brand-500);
-  }
-
-  .card {
-    position: relative;
-    /* A larger radius is the cheapest smoothing there is — it removes four
-       hard corners from every tile in the grid, and it matters more without a
-       border, since the curve is now the whole shape. */
-    border-radius: 1.35rem;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--duration-quick) var(--ease-glide);
-  }
-
-  /* The navy surface. This is where the palette's third colour earns its place:
-     one deep panel per screen, and everything else white. Text on it is white
-     or amber. */
-  .brand-gradient {
-    background:
-      radial-gradient(120% 140% at 12% 0%, rgba(245, 166, 35, 0.16) 0%, transparent 58%),
-      linear-gradient(160deg, var(--color-navy-700) 0%, var(--color-navy-800) 55%, var(--color-navy-900) 100%);
-    color: #ffffff;
-  }
-
-  /* ---- filled fields, no outline --------------------------------------
-   * The field is a recessed shape rather than an outlined box: a tinted fill
-   * inside a white card, which is the inverse of the card's own relationship
-   * to the page. Nothing is stroked.
-   *
-   * Worth stating what that costs. WCAG 1.4.11 wants 3:1 on the boundary of a
-   * control, and this fill against white is about 1.2:1 — a border cleared
-   * that bar and a fill does not. Three things carry it instead: every field
-   * in this app has a permanent visible label above it (never a placeholder
-   * standing in for one), the fill covers the full tap target so the shape is
-   * unambiguous, and focus draws a 3px navy ring that is well past 3:1. An
-   * invalid field additionally goes red-tinted AND carries `aria-invalid` and
-   * a `role="alert"` message, so its state is never fill alone. */
-  .field {
-    width: 100%;
-    min-height: var(--tap-min);
-    border-radius: 0.75rem;
-    border: none;
-    background: var(--color-surface-inset);
-    padding: 0.75rem 0.95rem;
-    /* 17px. Also the threshold below which iOS Safari zooms the page on focus —
-       the "why did the layout jump?" bug behind many mobile checkout forms. */
-    font-size: var(--text-base);
-    color: var(--color-ink);
-    outline: none;
-    transition:
-      background-color var(--duration-quick) var(--ease-glide),
-      box-shadow var(--duration-quick) var(--ease-glide);
-  }
-
-  .field::placeholder {
-    color: var(--color-ink-faint);
-  }
-
-  .field:hover:not(:focus) {
-    background: var(--color-surface-hover);
-  }
-
-  /* The ring replaces the border rather than sitting outside one, so focus
-     does not shift a single pixel of layout. */
-  .field:focus {
-    background: var(--color-surface);
-    box-shadow:
-      0 0 0 2px var(--color-navy-900),
-      0 0 0 6px rgba(245, 166, 35, 0.3);
-  }
-
-  .field-invalid {
-    background: var(--color-danger-50);
-    color: var(--color-ink);
-  }
-
-  .field-invalid:focus {
-    background: var(--color-surface);
-    box-shadow:
-      0 0 0 2px var(--color-danger-600),
-      0 0 0 6px rgba(179, 38, 30, 0.22);
-  }
-
-  /* ---- the amber call to action ---------------------------------------
-   * A flat amber fill with NAVY text on it, measuring 9.48:1. Amber type on
-   * anything would be the pretty, unreadable choice.
-   *
-   * Flat, not a gradient, and no travelling sheen. The dark theme's metallic
-   * treatment sold gold as foil against a black card; the same highlight
-   * crossing a button on a white page reads as a rendering artefact, and it
-   * was the most eye-catching thing on a screen whose job is to be calm. */
-  .btn-primary {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    /* Larger than the 44px floor: it is the end of the whole journey, and it
-       should be impossible to miss or to mis-tap. */
-    min-height: 3.25rem;
-    border-radius: 0.95rem;
-    background: var(--color-brand-500);
-    color: var(--color-navy-900);
-    font-weight: 800;
-    font-size: var(--text-base);
-    padding: 0.85rem 1.15rem;
-    /* The inset lip is the whole foil-stamp cue, at zero animation cost. It is
-       what the old theme's travelling sheen was for, minus the infinite
-       animation on every screen. */
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      var(--shadow-amber);
-    transition:
-      background-color var(--duration-glide) var(--ease-glide),
-      transform var(--duration-glide) var(--ease-glide),
-      box-shadow var(--duration-glide) var(--ease-glide);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--color-brand-600);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      var(--shadow-md);
-  }
-
-  .btn-primary:active:not(:disabled) {
-    transform: scale(0.985);
-  }
-
-  .btn-primary:disabled {
-    background: var(--color-line);
-    color: var(--color-ink-faint);
-    box-shadow: none;
-    cursor: not-allowed;
-  }
-
-  /* The secondary button. Filled, not outlined — a tinted surface reads as
-     pressable without drawing a rectangle, and it keeps the whole page free of
-     competing rules. */
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: var(--tap-min);
-    border-radius: 0.85rem;
-    border: none;
-    background: var(--color-surface-inset);
-    color: var(--color-ink);
-    font-weight: 600;
-    font-size: var(--text-base);
-    padding: 0.6rem 1.1rem;
-    transition:
-      color var(--duration-quick) var(--ease-glide),
-      background-color var(--duration-quick) var(--ease-glide);
-  }
-
-  .btn-ghost:hover:not(:disabled) {
-    background: var(--color-surface-hover);
-    color: var(--color-ink);
-  }
-
-  .btn-ghost:disabled {
-    color: var(--color-ink-faint);
-    cursor: not-allowed;
-  }
-
-  /* The Add button on a product tile, and the stepper it turns into.
-     Deliberately not uppercase: capitals strip the word-shape a reader
-     recognises, which costs most for the people this store has to be easiest
-     for. "Add" also beats a bare "+" — an icon must be decoded, a verb need
-     not be.
-
-     A cream wash rather than solid amber, and no outline. Sixty saturated
-     amber blocks down a product grid is a shouting aisle; solid amber is
-     reserved for the one CTA per screen that actually is the next step. The
-     label is bronze on the wash — 5.5:1 — which is what tells the eye this is
-     the amber control on the tile without the tile having to shout. */
-  .btn-add {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    width: 100%;
-    min-height: var(--tap-min);
-    border-radius: 0.85rem;
-    border: none;
-    background: var(--color-brand-50);
-    color: var(--color-brand-700);
-    font-weight: 800;
-    font-size: var(--text-base);
-    padding: 0.5rem;
-    transition:
-      background-color var(--duration-quick) var(--ease-glide),
-      color var(--duration-quick) var(--ease-glide);
-  }
-
-  .btn-add:hover:not(:disabled) {
-    background: var(--color-brand-500);
-    color: var(--color-navy-900);
-  }
-
-  .btn-add:disabled {
-    background: var(--color-surface-inset);
-    color: var(--color-ink-faint);
-    cursor: not-allowed;
-  }
-
-  .stepper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    border-radius: 0.85rem;
-    background: var(--color-brand-500);
-    color: var(--color-navy-900);
-    font-weight: 800;
-    font-size: var(--text-base);
-    overflow: hidden;
-  }
-
-  /* Each half is a full tap target in its own right. At the ~28px this used to
-     be, the two buttons sat about 10px apart — which is how you end up
-     ordering none of something you wanted two of. */
-  .stepper button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--tap-min);
-    min-height: var(--tap-min);
-    line-height: 1;
-    transition: background-color var(--duration-quick) var(--ease-glide);
-  }
-
-  .stepper button:hover:not(:disabled) {
-    background: rgba(8, 14, 32, 0.14);
-  }
-
-  .stepper button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  /* Navy chip, amber type — 9.47:1, and the inverse of everything else on the
-     tile. The tile already carries an amber Add button; a second amber block
-     above it would compete with the control the customer is meant to press.
-     A small dark chip with amber type reads as a foil sticker instead. */
-  .badge-discount {
-    background: var(--color-navy-900);
-    color: var(--color-brand-500);
-    font-weight: 800;
-    font-size: var(--text-xs);
-    line-height: 1.15;
-    letter-spacing: 0.01em;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.5rem;
-    box-shadow: var(--shadow-xs);
-  }
-
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    border-radius: 999px;
-    padding: 0.28rem 0.7rem;
-    font-size: var(--text-xs);
-    font-weight: 700;
-  }
-
-  /* Icon-only tap target — close, clear, delete. Icons are the easiest
-     controls to miss, so they take the floor size explicitly rather than
-     inheriting whatever their padding happens to produce. */
-  .btn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--tap-min);
-    min-height: var(--tap-min);
-    border-radius: 0.85rem;
-    color: var(--color-ink-soft);
-    transition:
-      background-color var(--duration-quick) var(--ease-glide),
-      color var(--duration-quick) var(--ease-glide);
-  }
-
-  .btn-icon:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-ink);
-  }
-
-  /* ---- 3D ------------------------------------------------------------
-   * The tilt is applied by `useTilt`, which writes --tilt-x/--tilt-y as the
-   * pointer moves. The transform lives here rather than in JS so the browser
-   * keeps it on the compositor, and so the reduced-motion block at the bottom
-   * can neutralise it in one place.
-   *
-   * `will-change` is set only while a card is actually hovered: setting it
-   * permanently on every tile in a 60-product grid promotes 60 layers and
-   * costs more than the effect is worth. */
-  .tilt-3d {
-    transform-style: preserve-3d;
-    transform:
-      perspective(900px)
-      rotateX(var(--tilt-x, 0deg))
-      rotateY(var(--tilt-y, 0deg))
-      translateZ(0);
-    transition:
-      transform var(--duration-settle) var(--ease-glide),
-      box-shadow var(--duration-settle) var(--ease-glide),
-      border-color var(--duration-settle) var(--ease-glide);
-  }
-
-  .tilt-3d:hover {
-    will-change: transform;
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Lifts a child toward the viewer inside a tilted card, which is what sells
-     the parallax as depth rather than as a skew. Lifted modestly, to stay in
-     proportion with the gentle tilt — the parallax should suggest depth, not
-     detach the image from its own card. */
-  .tilt-layer {
-    transform: translateZ(24px);
-    transform-style: preserve-3d;
-  }
-
-  .no-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .no-scrollbar::-webkit-scrollbar {
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
     display: none;
   }
+}
 
-  /* Sweeps DARKER than its surroundings. The dark theme's skeleton swept
-     brighter, which on a white card is a white shimmer on white — invisible,
-     and therefore no longer a signal that something is loading. */
-  .skeleton {
-    background: linear-gradient(
-      90deg,
-      #edf1f7 25%,
-      #dfe6f0 37%,
-      #edf1f7 63%
-    );
-    background-size: 400% 100%;
-    /* Slow, and a gentle peak. A fast sweep across a grid of placeholders is a
-       lot of flicker at exactly the moment the page is already busy. */
-    animation: skeleton-sweep 2s var(--ease-glide) infinite;
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-
-  @keyframes skeleton-sweep {
-    0% { background-position: 100% 50%; }
-    100% { background-position: 0 50%; }
-  }
-
-  /* Jump to the product grid. Off-screen until focused, which is the whole
-     point: it costs a sighted mouse user nothing and saves a keyboard user
-     tabbing through the header, the category rail and the search box on every
-     single page load. */
-  .skip-link {
-    position: fixed;
-    top: 0.75rem;
-    left: 0.75rem;
-    z-index: 100;
-    transform: translateY(-150%);
-    border-radius: 0.75rem;
-    background: var(--color-navy-900);
-    color: #ffffff;
-    font-weight: 700;
-    padding: 0.75rem 1.1rem;
-    box-shadow: var(--shadow-lg);
-    transition: transform var(--duration-quick) var(--ease-glide);
-  }
-
-  .skip-link:focus {
-    transform: translateY(0);
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
-/**
- * Reduced motion.
- *
- * Everything decorative stops: the tilt, the skeleton sweep. The blanket
- * duration override below would flatten the animations but would leave a tilted
- * card frozen mid-rotation, so the transform is reset explicitly. Vestibular
- * sensitivity is common in exactly the audience this store is meant to be
- * easiest for, and a 3D flourish is never worth a dizzy customer.
- */
+@keyframes pop {
+  0% {
+    transform: scale(0.86);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@utility animate-rise {
+  animation: rise 0.5s var(--ease-apple) both;
+}
+
+@utility animate-pop {
+  animation: pop 0.28s var(--ease-apple);
+}
+
+@utility animate-pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+/* Motion is decoration here — every animation above is an entrance or an
+   acknowledgement, never the only signal that something changed. So honouring
+   this preference costs nothing and prevents real discomfort. */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  .tilt-3d,
-  .tilt-3d:hover {
-    transform: none !important;
-  }
-
-  .tilt-layer {
-    transform: none !important;
-  }
-
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/**
- * Touch.
- *
- * A card that tilts under a finger is a tap target that moves while it is
- * being tapped. The whole effect is pointer-only, which is also where it is
- * actually visible — nobody hovers a phone.
- */
-@media (hover: none) {
-  .tilt-3d,
-  .tilt-3d:hover {
-    transform: none !important;
-  }
-
-  .tilt-layer {
-    transform: none !important;
+    scroll-behavior: auto !important;
   }
 }
