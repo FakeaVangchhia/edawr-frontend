@@ -26,7 +26,11 @@ const PAGE_SIZE = 25;
 const BOARD_COLUMNS: { status: OrderStatus; label: string; hint: string }[] = [
   { status: 'Placed', label: 'New', hint: 'Waiting to be picked' },
   { status: 'Packing', label: 'Packing', hint: 'Being assembled' },
-  { status: 'Ready', label: 'Ready', hint: 'Waiting for a rider' },
+  // A rider is picked automatically at Ready, so an order that stays in this
+  // column is one dispatch could find nobody for — not one simply waiting its
+  // turn. The hint says so, because the difference decides whether a manager
+  // needs to do anything.
+  { status: 'Ready', label: 'Ready', hint: 'No rider found yet' },
   { status: 'Dispatched', label: 'On the way', hint: 'With a rider' },
 ];
 

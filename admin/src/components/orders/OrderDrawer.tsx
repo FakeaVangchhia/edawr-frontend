@@ -232,10 +232,23 @@ export function OrderDrawer({
               </p>
             ) : null}
 
-            {!order.rider && order.status !== 'Cancelled' && order.status !== 'Delivered' ? (
+            {/* The picker is an override, not the normal path. Riders are
+                chosen automatically the moment an order is marked Ready (see
+                api/dispatch.py), so this stays available on an order that
+                already has one — reassigning is now the common reason to open
+                it — and an order that is Ready with nobody on it means
+                automatic dispatch found no candidate, which is the one state a
+                manager has to act on. */}
+            {order.status !== 'Cancelled' && order.status !== 'Delivered' ? (
               <div className="mt-3 border-t border-line pt-3">
+                {!order.rider && order.status === 'Ready' ? (
+                  <p className="mb-2 rounded-[0.3rem] border border-danger bg-danger-quiet px-2 py-1.5 text-xs text-danger">
+                    No rider was found automatically. Nobody on shift is within
+                    range of this address, or everyone in range has declined it.
+                  </p>
+                ) : null}
                 <label className="label" htmlFor="assign-rider">
-                  Assign a rider
+                  {order.rider ? 'Hand to a different rider' : 'Assign a rider'}
                 </label>
                 <div className="flex gap-2">
                   <select
@@ -258,12 +271,13 @@ export function OrderDrawer({
                     disabled={!riderId || busy}
                     onClick={() => run(() => assignOrder(order.id, Number(riderId)))}
                   >
-                    Assign
+                    {order.rider ? 'Reassign' : 'Assign'}
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-ink-faint">
-                  Assigning walks the order forward to Dispatched and overrides the
-                  rider&apos;s own queue.
+                  {order.rider
+                    ? 'Overrides the automatic choice and moves the order to whoever you pick.'
+                    : 'Normally automatic once the order is Ready. Assigning by hand walks it forward to Dispatched and overrides both the automatic choice and the queue in the rider app.'}
                 </p>
               </div>
             ) : null}
