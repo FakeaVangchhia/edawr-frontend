@@ -37,9 +37,15 @@ npm run dev               # http://localhost:3000
 | `/offers` | Real delivery thresholds and genuinely discounted stock |
 
 The staff console is a **separate application in its own repository**
-(`edawr-admin`, checked out at `admin/` and ignored here), on port 3001. Nothing
-in this package is authenticated: every endpoint the storefront touches is
-public, because a customer has no account.
+(`edawr-admin`, checked out alongside this directory at `admin/`), on port 3001.
+Nothing in this package is authenticated: every endpoint the storefront touches
+is public, because a customer has no account.
+
+> **This package is not under version control.** `frontend/` has no `.git`, and
+> neither does the directory above it. There is nothing to revert an edit to and
+> no history to read. The last committed state is archived at
+> `F:\Projects\eDawr-history.bundle` — a one-time snapshot, not a backup that
+> updates. Keep a copy elsewhere before a substantial change.
 
 ## The three rules this package is built around
 
