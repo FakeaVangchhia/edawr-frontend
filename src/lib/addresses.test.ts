@@ -3,6 +3,7 @@ import {
   addAddress,
   readAddresses,
   removeAddress,
+  restoreAddress,
   selectAddress,
   selectedAddress,
   toDeliveryAddress,
@@ -97,6 +98,93 @@ describe('removeAddress', () => {
     expect(book.entries).toEqual([]);
     expect(book.selectedId).toBeNull();
     expect(selectedAddress(book)).toBeNull();
+  });
+});
+
+describe('restoreAddress', () => {
+  it('puts the entry back at its original position with its original id', () => {
+    const home = seed();
+    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
+    const shop = addAddress({ label: 'Shop', line: 'Bara Bazar', city: 'Aizawl', landmark: '' });
+
+    removeAddress(work.id);
+    restoreAddress(work, 1, shop.id);
+
+    const book = readAddresses();
+    // Back in the middle, not appended to the end, and the same id — which is
+    // what makes an undo indistinguishable from never having deleted it.
+    expect(book.entries.map((entry) => entry.id)).toEqual([home.id, work.id, shop.id]);
+  });
+
+  it('restores the selection that was in force before the deletion', () => {
+    const home = seed();
+    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
+    selectAddress(work.id);
+
+    // Deleting the selected entry moves the selection to Home…
+    removeAddress(work.id);
+    expect(readAddresses().selectedId).toBe(home.id);
+
+    // …and undoing puts it back on Work.
+    restoreAddress(work, 1, work.id);
+    expect(readAddresses().selectedId).toBe(work.id);
+  });
+
+  it('is a no-op when the id is already present, so a double undo is harmless', () => {
+    const home = seed();
+    removeAddress(home.id);
+
+    restoreAddress(home, 0, home.id);
+    restoreAddress(home, 0, home.id);
+
+    expect(readAddresses().entries.map((entry) => entry.id)).toEqual([home.id]);
+  });
+
+  it('clamps an index that no longer fits the book', () => {
+    const home = seed();
+    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
+    removeAddress(work.id);
+
+    // The book shrank since the deletion, so index 9 is past the end.
+    restoreAddress(work, 9, work.id);
+
+    expect(readAddresses().entries.map((entry) => entry.id)).toEqual([home.id, work.id]);
+  });
+
+  it('leaves a selection the customer changed while the toast was up', () => {
+    const home = seed();
+    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
+    const shop = addAddress({ label: 'Shop', line: 'Bara Bazar', city: 'Aizawl', landmark: '' });
+    selectAddress(home.id);
+
+    // Deleting an entry that was *not* selected leaves the selection alone…
+    removeAddress(work.id);
+    expect(readAddresses().selectedId).toBe(home.id);
+
+    // …the customer then deliberately switches to Shop…
+    selectAddress(shop.id);
+
+    // …and undoes the deletion. Work comes back; the switch to Shop stands.
+    // Reverting it here would prefill checkout with an address they had just
+    // moved away from.
+    restoreAddress(work, 1, home.id);
+
+    const book = readAddresses();
+    expect(book.entries.map((entry) => entry.id)).toEqual([home.id, work.id, shop.id]);
+    expect(book.selectedId).toBe(shop.id);
+  });
+
+  it('falls back to a live selection when the remembered one is gone', () => {
+    const home = seed();
+    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
+    removeAddress(work.id);
+
+    // Nothing in the book has this id any more.
+    restoreAddress(work, 1, 'addr-vanished');
+
+    const book = readAddresses();
+    expect(book.selectedId).toBe(home.id);
+    expect(selectedAddress(book)).not.toBeNull();
   });
 });
 

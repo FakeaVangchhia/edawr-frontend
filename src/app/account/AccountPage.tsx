@@ -197,23 +197,49 @@ function AccountPanel() {
 
         {changing ? (
           <div className="space-y-3 rounded-2xl bg-surface p-4">
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="Current password"
-              autoComplete="current-password"
-              className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none focus:border-primary/25"
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="New password"
-              autoComplete="new-password"
-              className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none focus:border-primary/25"
-            />
-            <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
+            {/*
+              Labelled, not just placeheld.
+
+              Both boxes used a placeholder as their only label, and a
+              placeholder is gone the moment there is a character in the field.
+              Two stacked password inputs then look identical — both a row of
+              dots, neither saying which is the old one — so a customer who
+              paused had no way to tell them apart, and a screen reader had
+              nothing dependable to announce at all. The labels match the
+              pattern the rest of this page already uses.
+            */}
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Current password
+              </span>
+              <input
+                id="current-password"
+                name="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoComplete="current-password"
+                className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none focus:border-primary/25"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                New password
+              </span>
+              <input
+                id="new-password"
+                name="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                aria-describedby="new-password-hint"
+                className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none focus:border-primary/25"
+              />
+            </label>
+            <p id="new-password-hint" className="text-xs text-muted-foreground">
+              {PASSWORD_HINT}
+            </p>
             {passwordError && (
               <p role="alert" className="text-xs text-destructive">
                 {passwordError}
@@ -269,12 +295,28 @@ export function AccountPage() {
   const [phone, setPhone] = useDraft(profile.phone);
   const [touched, setTouched] = useState(false);
 
-  const nameError = touched && name.trim() !== '' && !isValidName(name);
-  const phoneError = touched && phone.trim() !== '' && !isValidIndianMobile(phone);
+  /**
+   * Whether each field is wrong, and separately whether to *say so yet*.
+   *
+   * These used to be one value each, gated on `touched`. `save()` sets `touched`
+   * and then read them — but they are derived from the render that is still on
+   * screen, where `touched` is false, so on the first press both were false
+   * whatever was in the boxes. Typing `123` as a mobile number and pressing Save
+   * stored it and said "Saved on this device"; the field only turned red
+   * afterwards, and only a *second* press was blocked. That number then prefills
+   * checkout, so the rider gets a number that cannot be rung.
+   *
+   * `touched` now governs presentation only. Validity is the same expression in
+   * both places because it is the same expression, not a copy of it.
+   */
+  const nameInvalid = name.trim() !== '' && !isValidName(name);
+  const phoneInvalid = phone.trim() !== '' && !isValidIndianMobile(phone);
+  const nameError = touched && nameInvalid;
+  const phoneError = touched && phoneInvalid;
 
   const save = () => {
     setTouched(true);
-    if (nameError || phoneError) return;
+    if (nameInvalid || phoneInvalid) return;
     saveProfile({ name, phone });
     toast.success('Saved on this device');
   };

@@ -24,7 +24,24 @@ const TITLE = 'eDawr — Everything you need, delivered in minutes';
 const DESCRIPTION =
   'Groceries, fresh produce, snacks, beverages and household essentials delivered across Aizawl in minutes. Live tracking on every order.';
 
+/**
+ * The origin `og:image` and `twitter:image` are resolved against.
+ *
+ * `src/app/opengraph-image.png` and `twitter-image.png` are file-convention
+ * metadata, and Next emits them as **absolute** URLs because that is the only
+ * kind a social crawler can fetch. Without a base it falls back to
+ * `http://localhost:3000` and every shared link renders a broken image — a
+ * build-time warning, and nothing at runtime, because the failure happens
+ * inside someone else's crawler.
+ *
+ * Overridable so a preview deployment advertises its own cards, but with a real
+ * default: the alternative is remembering to set a variable whose absence is
+ * invisible until a customer shares the shop.
+ */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://edawr.in';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: TITLE, template: '%s | eDawr' },
   description: DESCRIPTION,
   applicationName: 'eDawr',
@@ -71,7 +88,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={inter.variable}>
       <body>
         <AppShell>{children}</AppShell>
-        <Toaster position="bottom-right" offset={16} mobileOffset={{ bottom: '88px' }} closeButton />
+        {/*
+          The mobile offset clears both pieces of bottom chrome, and is derived
+          rather than guessed.
+
+          It was a flat `88px`, chosen when the tab bar was assumed to be 68px
+          tall. The bar is actually `--tabbar-height` — 56px plus the
+          home-indicator inset — so on an iPhone it is ~90px and the toast's
+          bottom edge sat behind it. Worse, cart and checkout stack a sticky
+          action bar (~77px) directly on top, which a toast at 88px covered
+          almost entirely: on the cart that is the "Undo" on a just-emptied
+          basket, and on checkout it is the Place order button.
+
+          `5.5rem` is that action bar plus a little air, so a toast sits above
+          the tallest chrome any screen puts at the bottom.
+        */}
+        <Toaster
+          position="bottom-right"
+          offset={16}
+          mobileOffset={{ bottom: 'calc(var(--tabbar-height) + 5.5rem)' }}
+          closeButton
+        />
       </body>
     </html>
   );

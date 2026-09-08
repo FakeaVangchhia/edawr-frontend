@@ -67,6 +67,43 @@ interface FieldErrors {
 }
 
 /**
+ * The fields, top to bottom, which is the order errors are reported in.
+ *
+ * Doubles as the id of each input, so `focusField` can find the one to jump to
+ * without a ref per field threaded through `Field`.
+ *
+ * Typed as `keyof FieldErrors` so a field added to that interface and forgotten
+ * here is a type error rather than a silent one. It is only ever used to *pick
+ * what to focus*, never to decide whether the form is valid — see `validate`.
+ */
+const FIELD_ORDER: readonly (keyof FieldErrors)[] = [
+  'name',
+  'phone',
+  'address',
+  'signupPassword',
+];
+
+/**
+ * Send the customer to the first thing they need to fix.
+ *
+ * Without this, a failed validation was close to silent. The submit button on a
+ * phone is a fixed bar at the bottom of the viewport, and the field it is
+ * complaining about — usually the name, the very first one — is a full screen
+ * above it. Tapping "Place order" marked a box in red that the customer could
+ * not see, and from where they were sitting nothing happened at all.
+ *
+ * Scroll first and focus with `preventScroll`, rather than letting focus do the
+ * scrolling: the header is `sticky top-0`, so the browser's own "just barely on
+ * screen" position puts the field underneath it.
+ */
+function focusField(key: keyof FieldErrors): void {
+  const element = document.getElementById(key);
+  if (!element) return;
+  element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  element.focus({ preventScroll: true });
+}
+
+/**
  * `+919812345678` as `9812345678`, for a field a customer types by hand.
  *
  * The account stores the normalised form; the server normalises whatever comes
@@ -203,6 +240,17 @@ export function CheckoutPage() {
       if (problem) next.signupPassword = problem;
     }
     setErrors(next);
+
+    // Report the topmost problem by taking the customer to it. Everything else
+    // stays marked, so fixing this one and submitting again lands on the next.
+    const first = FIELD_ORDER.find((key) => next[key]);
+    if (first) focusField(first);
+
+    // Validity is the *count of errors*, not "did FIELD_ORDER match one". A new
+    // key added to `FieldErrors` and not to `FIELD_ORDER` would otherwise leave
+    // this returning true with an error populated, and place the order with an
+    // invalid field — which TypeScript could not catch. The list above decides
+    // only where to send the customer.
     return Object.keys(next).length === 0;
   };
 
@@ -342,13 +390,39 @@ export function CheckoutPage() {
     outsideArea;
 
   return (
-    <div className="container-page py-8 pb-32 lg:py-12 lg:pb-12">
+    <div className="container-page py-8 pb-20 lg:py-12 lg:pb-12">
       <h1 className="text-3xl font-semibold lg:text-5xl">Checkout</h1>
       <p className="mt-2 text-muted-foreground">
         One screen. Your order leaves the store the moment you confirm.
       </p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px] lg:gap-12">
+      {/*
+        A real form, which it was not.
+
+        Every field was a bare input and both "Place order" buttons were
+        `type="button"`, so pressing Enter anywhere in the checkout did nothing
+        at all — and a phone keyboard showed a "return" key rather than "Go",
+        because the browser had no form to know it could submit. Wrapping it
+        also lets the browser treat name, phone and address as one address block
+        for autofill instead of three unrelated boxes.
+
+        `noValidate` because the messages here are written for a customer and
+        `validate()` reports them all at once; the browser's own bubble shows
+        one at a time and cannot say "a 10-digit mobile number, like 98123
+        45678".
+
+        The mobile action bar is a fixed element outside this element, so it
+        submits by `form="checkout-form"` rather than by nesting.
+      */}
+      <form
+        id="checkout-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px] lg:gap-12"
+      >
         <div className="space-y-6">
           <section className="rounded-4xl border border-border/70 p-6">
             <div className="flex items-center justify-between gap-4">
@@ -403,6 +477,7 @@ export function CheckoutPage() {
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field
+                id="name"
                 label="Your name"
                 value={name}
                 onChange={(value) => {
@@ -414,6 +489,7 @@ export function CheckoutPage() {
                 autoComplete="name"
               />
               <Field
+                id="phone"
                 label="Mobile number"
                 value={phone}
                 onChange={(value) => {
@@ -429,6 +505,7 @@ export function CheckoutPage() {
 
             <div className="mt-4">
               <Field
+                id="address"
                 label="Delivery address"
                 value={address}
                 onChange={(value) => {
@@ -484,16 +561,22 @@ export function CheckoutPage() {
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field
+                id="landmark"
                 label="Landmark (optional)"
                 value={landmark}
                 onChange={setLandmark}
                 placeholder="Near the church, opposite the bank"
+                onEnter={() => document.getElementById('notes')?.focus()}
               />
               <Field
+                id="notes"
                 label="Note for the rider (optional)"
                 value={notes}
                 onChange={setNotes}
                 placeholder="Gate code, or where to leave it"
+                // The last field. Enter dismisses the keyboard rather than
+                // placing the order; the action bar is then in plain sight.
+                onEnter={() => document.getElementById('notes')?.blur()}
               />
             </div>
 
@@ -517,6 +600,7 @@ export function CheckoutPage() {
                 {wantsAccount && (
                   <div className="mt-4">
                     <Field
+                      id="signupPassword"
                       label="Choose a password"
                       value={signupPassword}
                       onChange={setSignupPassword}
@@ -669,8 +753,7 @@ export function CheckoutPage() {
             )}
 
             <button
-              type="button"
-              onClick={submit}
+              type="submit"
               disabled={isPlacing || isLoading || blocked}
               className="hidden h-13 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift disabled:pointer-events-none disabled:opacity-60 lg:flex"
             >
@@ -682,12 +765,12 @@ export function CheckoutPage() {
             </button>
           </div>
         </aside>
-      </div>
+      </form>
 
-      <div className="fixed inset-x-0 bottom-[68px] z-30 border-t border-border/70 bg-background/92 px-5 py-3 backdrop-blur-xl lg:hidden">
+      <div className="fixed inset-x-0 bottom-[var(--tabbar-height)] z-30 border-t border-border/70 bg-background/92 px-5 py-3 backdrop-blur-xl lg:hidden">
         <button
-          type="button"
-          onClick={submit}
+          type="submit"
+          form="checkout-form"
           disabled={isPlacing || isLoading || blocked}
           className="flex h-13 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground transition-transform duration-300 ease-[var(--ease-apple)] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60"
         >
@@ -702,7 +785,21 @@ export function CheckoutPage() {
   );
 }
 
+/**
+ * One labelled input.
+ *
+ * `id` is required rather than optional because three things depend on it: the
+ * label's `for`, `aria-describedby` pointing at the error, and `focusField`,
+ * which finds the input to jump to by id. It is also the `name`, so the browser
+ * has something stable to hang a saved autofill entry on.
+ *
+ * The error is wired with `aria-describedby` and `role="alert"`. `aria-invalid`
+ * alone — which is all this had — tells a screen reader *that* the field is
+ * wrong and never *what* is wrong with it: the sentence explaining it was
+ * sitting in a plain span the field did not point to.
+ */
 function Field({
+  id,
   label,
   value,
   onChange,
@@ -711,7 +808,9 @@ function Field({
   inputMode,
   autoComplete,
   type = 'text',
+  onEnter,
 }: {
+  id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -720,13 +819,31 @@ function Field({
   inputMode?: 'tel' | 'text';
   autoComplete?: string;
   type?: 'text' | 'password';
+  /**
+   * What Enter does instead of submitting the form.
+   *
+   * Wrapping the page in a `<form>` gave every input implicit submission, which
+   * is right for the required fields — Enter after typing your address means
+   * "I am done". It is wrong for the two optional free-text boxes at the end:
+   * "Landmark" and "Note for the rider" are where Enter is a habitual keystroke
+   * rather than an instruction, and there it placed a cash order outright with
+   * nothing in between. These pass a handler that moves on instead.
+   */
+  onEnter?: () => void;
 }) {
+  const errorId = `${id}-error`;
+
   return (
-    <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="block">
+      <label
+        htmlFor={id}
+        className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+      >
         {label}
-      </span>
+      </label>
       <input
+        id={id}
+        name={id}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -734,13 +851,27 @@ function Field({
         inputMode={inputMode}
         autoComplete={autoComplete}
         aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        onKeyDown={
+          onEnter
+            ? (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                onEnter();
+              }
+            : undefined
+        }
         className={cn(
           'mt-2 h-12 w-full rounded-2xl border bg-surface px-4 text-sm outline-none transition-colors',
           error ? 'border-destructive' : 'border-border focus:border-primary/25',
         )}
       />
-      {error && <span className="mt-1.5 block text-xs text-destructive">{error}</span>}
-    </label>
+      {error && (
+        <span id={errorId} role="alert" className="mt-1.5 block text-xs text-destructive">
+          {error}
+        </span>
+      )}
+    </div>
   );
 }
 

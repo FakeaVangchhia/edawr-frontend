@@ -119,6 +119,53 @@ export function removeAddress(id: string): void {
   });
 }
 
+/**
+ * Put a removed address back exactly where it was — what "Undo" needs.
+ *
+ * Not `addAddress(entry)`: that mints a new id, appends to the end and takes
+ * the selection over. Undoing a deletion should leave the book indistinguishable
+ * from before the deletion, so this restores the original id, the original
+ * position, and the selection that was in force at the time.
+ *
+ * `index` is where the entry sat, and is clamped rather than trusted — the book
+ * can have changed between the removal and the undo, and a splice past the end
+ * would silently append.
+ *
+ * Restoring an id that is already present is a no-op. That makes a double undo
+ * harmless, which matters because the toast that calls this outlives the click
+ * that raised it.
+ */
+export function restoreAddress(
+  entry: SavedAddress,
+  index: number,
+  selectedId: string | null,
+): void {
+  const book = store.read();
+  if (book.entries.some((existing) => existing.id === entry.id)) return;
+
+  const entries = [...book.entries];
+  entries.splice(Math.max(0, Math.min(index, entries.length)), 0, entry);
+
+  store.write({
+    entries,
+    // **Take the selection back only if the deletion is what moved it.**
+    //
+    // `removeAddress` touches `selectedId` in exactly one case: the entry being
+    // deleted was the selected one. So that is the only case an undo should
+    // touch it either.
+    //
+    // Restoring it whenever the old id merely still existed was wrong, and
+    // wrong in a way that reached checkout. Home is selected, the customer
+    // deletes Work, then — while the toast is still up — taps "Deliver here" on
+    // Shop, then taps Undo. Work comes back, and the selection silently snapped
+    // from Shop to Home, so checkout prefilled an address they had just
+    // deliberately moved away from. An undo may put back what the delete took;
+    // it must not reach past that and revert a separate choice made since.
+    selectedId:
+      selectedId === entry.id ? entry.id : (book.selectedId ?? entry.id),
+  });
+}
+
 export function selectAddress(id: string): void {
   const book = store.read();
   if (!book.entries.some((entry) => entry.id === id)) return;

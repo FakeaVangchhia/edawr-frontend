@@ -70,6 +70,21 @@
 :root {
   --radius: 1rem;
 
+  /*
+    The exact height of the mobile tab bar, including the home-indicator inset.
+
+    Cart and checkout each pin a sticky action bar directly above it, and both
+    used to hardcode `bottom-[68px]` — the bar's height on a phone with no
+    safe-area inset. On every iPhone with a home indicator the inset is about
+    34px more than that, so the primary action on the two screens that matter
+    most sat *behind* the tab bar and was partly untappable.
+
+    `AppShell`'s nav enforces this rather than merely matching it: the row is
+    `h-14` and the inset is its padding-bottom, so the two numbers below are the
+    box model rather than a measurement that can drift.
+  */
+  --tabbar-height: calc(3.5rem + max(env(safe-area-inset-bottom), 0.4rem));
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.16 0.038 264);
   --surface: oklch(0.978 0.003 264);

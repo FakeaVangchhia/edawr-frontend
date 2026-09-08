@@ -19,6 +19,7 @@ import { rememberSearch } from '@/lib/recent-searches';
 import { fetchCategories, fetchProducts } from '@/lib/store-api';
 import { useRecentSearches } from '@/hooks/useStoreData';
 import { AddControl, ImageFallback } from '@/components/ProductCard';
+import { cn } from '@/lib/utils';
 import type { StoreCategory, StoreProduct } from '@/types';
 
 /**
@@ -37,6 +38,17 @@ import type { StoreCategory, StoreProduct } from '@/types';
  */
 
 const DEBOUNCE_MS = 250;
+
+/**
+ * Case-insensitive "is `a` the start of `b`".
+ *
+ * Used to decide whether the previous results are worth leaving on screen while
+ * the next ones load: "mi" → "milk" is the same search being narrowed, "milk"
+ * → "bread" is a different one.
+ */
+function isPrefix(a: string, b: string): boolean {
+  return b.toLowerCase().startsWith(a.toLowerCase());
+}
 
 interface Results {
   query: string;
@@ -98,8 +110,27 @@ export function SearchOverlay({
 
   // Derived, not stored: results are stale whenever they were produced by a
   // different query than the one currently typed.
+  //
+  // **Stale results stay on screen rather than being replaced by nothing.**
+  // This used to render only an exact match for the current term, so every
+  // keystroke emptied the list and put "Searching…" in its place — at a 250ms
+  // debounce plus a round trip, typing "milk" flashed the panel blank four
+  // times. Holding the previous rows at reduced opacity means the list settles
+  // instead of strobing, and the results a customer is already reading do not
+  // vanish underneath them while they read.
+  //
+  // **But only rows that could still be about what is being typed.** `results`
+  // outlives the dialog — closing it resets `query`, not the results — so
+  // holding *any* previous rows meant searching "milk", closing, reopening and
+  // typing "b" showed the milk rows greyed out as though they were results for
+  // "b". Requiring one query to be a prefix of the other keeps exactly the case
+  // this exists for, a term being typed or backspaced, and sends everything
+  // else back to "Searching…".
+  const related =
+    results !== null && (isPrefix(results.query, term) || isPrefix(term, results.query));
+  const shown = term && related ? results : null;
+  const isStale = shown !== null && shown.query !== term;
   const isLoading = term.length > 0 && results?.query !== term;
-  const shown = results?.query === term ? results : null;
 
   const go = (value: string) => {
     const trimmed = value.trim();
@@ -186,53 +217,80 @@ export function SearchOverlay({
             </div>
           )}
 
-          {isLoading && (
+          {/*
+            One region, always mounted, announcing what the list now holds — a
+            screen reader otherwise gets silence while the visible list changes
+            under a sighted user's eyes. Only the settled state is announced;
+            reading out a count for every intermediate query would be noise.
+          */}
+          <p role="status" aria-live="polite" className="sr-only">
+            {isLoading || !shown
+              ? ''
+              : shown.error
+                ? shown.error
+                : `${shown.products.length} ${shown.products.length === 1 ? 'result' : 'results'} for ${shown.query}`}
+          </p>
+
+          {/* Only while there is nothing to keep on screen. Once there is, the
+              dimmed list below carries the pending state instead. */}
+          {isLoading && !shown && (
             <p className="animate-pulse-soft p-4 text-sm text-muted-foreground">Searching…</p>
           )}
 
-          {shown?.error && <p className="p-4 text-sm text-destructive">{shown.error}</p>}
+          {/* The error and the empty state describe the query that produced
+              them, so they are held back until that query is the current one —
+              otherwise "Nothing matches 'mi'" flashes up mid-word. */}
+          {!isStale && shown?.error && <p className="p-4 text-sm text-destructive">{shown.error}</p>}
 
-          {shown && !shown.error && shown.products.length === 0 && (
+          {!isStale && shown && !shown.error && shown.products.length === 0 && (
             <p className="p-4 text-sm text-muted-foreground">
               Nothing matches “{shown.query}”. Try a shorter word.
             </p>
           )}
 
-          {shown?.products.map((product) => {
-            const image = assetUrl(product.image_url);
-            return (
-              <div key={product.id} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary">
-                <Link
-                  href={`/product/${product.id}`}
-                  onClick={() => onOpenChange(false)}
-                  className="flex min-w-0 flex-1 items-center gap-3"
-                >
-                  {image ? (
-                    <img
-                      src={image}
-                      alt=""
-                      loading="lazy"
-                      width={100}
-                      height={100}
-                      className="size-11 shrink-0 rounded-xl bg-surface object-cover"
-                    />
-                  ) : (
-                    <ImageFallback name={product.name} className="size-11 shrink-0 rounded-xl" />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{product.name}</span>
-                    <span className="num block text-xs text-muted-foreground">
-                      {formatMoney(product.price)}
-                      {product.unit ? ` · ${product.unit}` : ''}
+          <div
+            className={cn(
+              'transition-opacity duration-200',
+              isStale && 'pointer-events-none opacity-50',
+            )}
+            aria-busy={isLoading || undefined}
+          >
+            {shown?.products.map((product) => {
+              const image = assetUrl(product.image_url);
+              return (
+                <div key={product.id} className="flex items-center gap-3 rounded-2xl p-2 hover:bg-secondary">
+                  <Link
+                    href={`/product/${product.id}`}
+                    onClick={() => onOpenChange(false)}
+                    className="flex min-w-0 flex-1 items-center gap-3"
+                  >
+                    {image ? (
+                      <img
+                        src={image}
+                        alt=""
+                        loading="lazy"
+                        width={100}
+                        height={100}
+                        className="size-11 shrink-0 rounded-xl bg-surface object-cover"
+                      />
+                    ) : (
+                      <ImageFallback name={product.name} className="size-11 shrink-0 rounded-xl" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{product.name}</span>
+                      <span className="num block text-xs text-muted-foreground">
+                        {formatMoney(product.price)}
+                        {product.unit ? ` · ${product.unit}` : ''}
+                      </span>
                     </span>
-                  </span>
-                </Link>
-                <AddControl product={product} />
-              </div>
-            );
-          })}
+                  </Link>
+                  <AddControl product={product} />
+                </div>
+              );
+            })}
+          </div>
 
-          {shown && shown.products.length > 0 && (
+          {!isStale && shown && shown.products.length > 0 && (
             <button
               type="button"
               onClick={() => go(term)}

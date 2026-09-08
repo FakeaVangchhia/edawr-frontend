@@ -121,7 +121,14 @@ export function OrderTracker({ token }: { token: string }) {
     const controller = new AbortController();
 
     trackOrder(token, controller.signal)
-      .then((order) => setState({ order, error: '' }))
+      .then((order) => {
+        // Guarded like the catch below. `reloadToken` changes abort the
+        // in-flight request, and a response that resolved just before the
+        // abort landed would overwrite a newer poll's result with older data —
+        // or write to a tree the customer has already left.
+        if (controller.signal.aborted) return;
+        setState({ order, error: '' });
+      })
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         if (caught instanceof ApiError && caught.status === 404) {
@@ -145,10 +152,57 @@ export function OrderTracker({ token }: { token: string }) {
   const order = state?.order ?? null;
   const live = order !== null && isLive(order.status);
 
+  /**
+   * Poll while the order is live — but only while someone is actually looking.
+   *
+   * This used to poll every ten seconds for as long as the page existed. The
+   * common case for this screen is a customer placing an order and then
+   * switching away to do something else for fifteen minutes, which meant six
+   * requests a minute, indefinitely, against a phone's battery and a metered
+   * Aizawl mobile connection, to update a page nobody could see. Multiply by
+   * every customer with a live order and the store is paying for it too.
+   *
+   * Coming back refreshes *immediately* rather than waiting out the rest of an
+   * interval, so returning to the tab shows the current state at once — which
+   * is also the moment a customer most wants it to be right.
+   *
+   * `setReloadToken` runs from a timer and from an event handler, never
+   * synchronously inside this effect, which is the rule everywhere here.
+   */
   useEffect(() => {
     if (!live) return;
-    const timer = setInterval(() => setReloadToken((value) => value + 1), POLL_MS);
-    return () => clearInterval(timer);
+
+    const refresh = () => setReloadToken((value) => value + 1);
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const start = () => {
+      timer ??= setInterval(refresh, POLL_MS);
+    };
+    const stop = () => {
+      if (timer === undefined) return;
+      clearInterval(timer);
+      timer = undefined;
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        refresh();
+        start();
+      }
+    };
+
+    // A tab can be loaded in the background — restored on startup, or opened
+    // behind the current one — so this starts from the real state rather than
+    // assuming visible.
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [live]);
 
   if (state === null) return <TrackingSkeleton />;

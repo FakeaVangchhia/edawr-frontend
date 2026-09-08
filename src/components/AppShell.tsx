@@ -13,7 +13,6 @@ import {
   Search,
   ShoppingBag,
   User,
-  Zap,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -24,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { selectAddress, selectedAddress } from '@/lib/addresses';
+import { isTabActive, type TabKey } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 import { useAddressBook, useCart, useIsOnline, useSession, useStoreConfig } from '@/hooks/useStoreData';
 import { setSessionExpiredHandler } from '@/lib/api';
@@ -39,12 +39,35 @@ import { readSession, saveSession } from '@/lib/session';
  * components where they have nothing interactive to do.
  */
 
+/**
+ * The header and footer lockup.
+ *
+ * The tile is the real logo, not a stand-in: `edawr-mark-512.png` is the amber
+ * "e" cut out of `public/assets/edawr_profile_darknavy.png` by
+ * `scripts/generate-brand-assets.mjs`, which is the source of every icon in the
+ * estate. It used to be a lucide <Zap>, chosen because there was no logo file
+ * to point at.
+ *
+ * The mark rather than the whole badge, because the badge's entire content is
+ * the word "eDawr" and at 32px that wordmark is about four pixels tall. The
+ * name is set beside it in real type instead, where it stays legible.
+ *
+ * Plain <img>, like the product images: `next/image` would want the file
+ * through its optimiser for a 32px asset that is already 22 KB and cached
+ * forever, which buys nothing and costs a round trip.
+ */
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2" aria-label="eDawr home">
-      <span className="grid size-8 place-items-center rounded-xl bg-primary">
-        <Zap className="size-4 text-amber" aria-hidden />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
+      <img
+        src="/assets/edawr-mark-512.png"
+        alt=""
+        width={32}
+        height={32}
+        className="size-8 rounded-xl"
+        aria-hidden
+      />
       <span className="text-[17px] font-semibold tracking-tight">eDawr</span>
     </Link>
   );
@@ -169,7 +192,7 @@ const NAV_LINK_CLASS =
  * and it is where someone looks when they wonder whether the shop knows them.
  *
  * **Desktop only.** `MobileNav` keeps its plain `/account` tab: the bottom bar
- * is a fixed five-across grid, and a label that changes width between "Account"
+ * is a fixed four-across grid, and a label that changes width between "Account"
  * and a name would shift the tabs either side of it under the customer's thumb.
  * The account *page* handles the signed-out state there instead.
  *
@@ -311,7 +334,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 pb-24 lg:pb-0">{children}</main>
+      {/* Clears the tab bar with a little air below the last element, from the
+          same token the bar itself is built from — `pb-24` was a guess that a
+          home-indicator inset could eat entirely. */}
+      <main className="flex-1 pb-[calc(var(--tabbar-height)+1.5rem)] lg:pb-0">{children}</main>
 
       <footer className="hidden border-t border-border/70 bg-surface lg:block">
         <div className="container-page grid gap-10 py-14 md:grid-cols-4">
@@ -355,7 +381,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </footer>
 
-      <MobileNav pathname={pathname} onSearch={() => setSearchOpen(true)} />
+      <MobileNav pathname={pathname} />
       <SearchOverlay open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
@@ -381,27 +407,58 @@ function FooterCol({ title, links }: { title: string; links: Array<[string, stri
   );
 }
 
-function MobileNav({ pathname, onSearch }: { pathname: string; onSearch: () => void }) {
-  const count = useCartCount();
-  const items = [
-    { href: '/', label: 'Home', icon: Home },
-    { href: '/categories', label: 'Aisles', icon: Grid2X2 },
-    { href: '/orders', label: 'Orders', icon: Package },
-    { href: '/account', label: 'Account', icon: User },
-  ] as const;
+/**
+ * The mobile tab bar: four destinations, and nothing that is already on screen.
+ *
+ * It used to carry six — these four plus Search and Cart. Both of those are in
+ * the header, which is `sticky top-0` and therefore visible on the same screen
+ * at the same time: the search field is the widest thing in it, and the cart
+ * button with its badge sits at the end of the same row. So a phone showed two
+ * ways to search and two ways to reach the basket, permanently, four pixels of
+ * chrome apart.
+ *
+ * Six is also past the point where a bar reads as a set of places. The
+ * convention across iOS and Android tops out at five, and these six were not
+ * even the same kind of thing — four destinations, one action that opens an
+ * overlay, and one more destination. Cutting to four leaves targets that are
+ * wider than a thumb and a bar that can be read at a glance.
+ *
+ * The height is deliberate and load-bearing: `h-14` on the row plus the
+ * home-indicator inset as padding is exactly `--tabbar-height`, which cart and
+ * checkout use to place their sticky action bars. Changing one means changing
+ * the other.
+ */
+/**
+ * The bar's four entries: a key, where tapping goes, and how it looks.
+ *
+ * *Which routes light which tab* is not here — that is `lib/nav.ts`, because it
+ * is pure route logic that was silently wrong for a long time and is now pinned
+ * by `nav.test.ts`. This file owns presentation; that one owns the rule.
+ */
+const TABS: Array<{ key: TabKey; href: string; label: string; icon: typeof Home }> = [
+  { key: 'home', href: '/', label: 'Home', icon: Home },
+  { key: 'aisles', href: '/categories', label: 'Aisles', icon: Grid2X2 },
+  { key: 'orders', href: '/orders', label: 'Orders', icon: Package },
+  { key: 'account', href: '/account', label: 'Account', icon: User },
+];
+
+function MobileNav({ pathname }: { pathname: string }) {
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-xl lg:hidden">
-      <div className="mx-auto flex max-w-md items-center justify-around px-2 pb-[max(env(safe-area-inset-bottom),0.4rem)] pt-2">
-        {items.map(({ href, label, icon: Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 pb-[max(env(safe-area-inset-bottom),0.4rem)] backdrop-blur-xl lg:hidden"
+    >
+      <div className="mx-auto flex h-14 max-w-md items-stretch justify-around px-2">
+        {TABS.map(({ key, href, label, icon: Icon }) => {
+          const active = isTabActive(pathname, key);
           return (
             <Link
-              key={href}
+              key={key}
               href={href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[11px] transition-colors',
+                'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] transition-colors',
                 active ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
@@ -410,28 +467,6 @@ function MobileNav({ pathname, onSearch }: { pathname: string; onSearch: () => v
             </Link>
           );
         })}
-
-        <button
-          type="button"
-          onClick={onSearch}
-          className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-1.5 text-[11px] text-muted-foreground"
-        >
-          <Search className="size-5" aria-hidden />
-          Search
-        </button>
-
-        <Link
-          href="/cart"
-          className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-1.5 text-[11px] text-muted-foreground"
-        >
-          <ShoppingBag className="size-5" aria-hidden />
-          Cart
-          {count > 0 && (
-            <span className="num absolute right-2 top-0 grid min-w-4 place-items-center rounded-full bg-amber px-1 text-[10px] font-semibold text-amber-foreground">
-              {count}
-            </span>
-          )}
-        </Link>
       </div>
     </nav>
   );

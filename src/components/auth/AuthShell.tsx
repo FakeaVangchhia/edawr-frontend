@@ -47,6 +47,7 @@ export function AuthField({
   label,
   value,
   onChange,
+  id,
   type = 'text',
   placeholder,
   hint,
@@ -55,6 +56,7 @@ export function AuthField({
   autoComplete,
   disabled,
 }: {
+  id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -66,12 +68,21 @@ export function AuthField({
   autoComplete?: string;
   disabled?: boolean;
 }) {
+  // Whichever line is actually rendered below is the one the input points at.
+  const noteId = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+
   return (
     <label className="block">
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       <input
+        // `id` and `name` are here for the browser and the password manager, not
+        // for us: an unnamed input is one autofill has nothing stable to attach
+        // a saved credential to, which on a sign-in form is the difference
+        // between one tap and typing a password on a phone.
+        id={id}
+        name={id}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -80,6 +91,11 @@ export function AuthField({
         autoComplete={autoComplete}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
+        // `aria-invalid` alone says only *that* the field is wrong. The
+        // sentence saying what is wrong with it — or the hint explaining what
+        // is wanted — sat in a span nothing pointed at, so a screen reader
+        // announced an invalid field and no reason. Same fix as checkout's.
+        aria-describedby={noteId}
         className={cn(
           'mt-2 h-12 w-full rounded-2xl border bg-background px-4 text-sm outline-none transition-colors',
           'disabled:cursor-not-allowed disabled:opacity-60',
@@ -87,9 +103,13 @@ export function AuthField({
         )}
       />
       {error ? (
-        <span className="mt-1.5 block text-xs text-destructive">{error}</span>
+        <span id={noteId} role="alert" className="mt-1.5 block text-xs text-destructive">
+          {error}
+        </span>
       ) : hint ? (
-        <span className="mt-1.5 block text-xs text-muted-foreground">{hint}</span>
+        <span id={noteId} className="mt-1.5 block text-xs text-muted-foreground">
+          {hint}
+        </span>
       ) : null}
     </label>
   );

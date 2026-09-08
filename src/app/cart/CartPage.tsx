@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { assetUrl } from '@/lib/api';
-import { addOne, clearCart, removeLine, setQuantity } from '@/lib/cart-store';
+import { addOne, clearCart, mergeLines, removeLine, setQuantity } from '@/lib/cart-store';
 import { DEFAULT_DELIVERY_TYPE } from '@/lib/delivery';
 import { formatMoney } from '@/lib/format';
 import {
@@ -85,7 +85,7 @@ export function CartPage() {
   const unavailableIds = new Set(quote?.unavailable.map((item) => item.product_id) ?? []);
 
   return (
-    <div className="container-page py-8 pb-32 lg:py-12 lg:pb-12">
+    <div className="container-page py-8 pb-20 lg:py-12 lg:pb-12">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold lg:text-5xl">Your basket</h1>
@@ -93,11 +93,30 @@ export function CartPage() {
             {lines.length} {lines.length === 1 ? 'product' : 'products'}
           </p>
         </div>
+        {/*
+          Destructive, one tap, and previously final: this emptied a basket
+          someone had spent minutes filling and offered nothing but "Basket
+          cleared". It sits a thumb's width from the quantity steppers, so
+          hitting it by accident is not hypothetical.
+
+          Undo rather than a confirmation dialog. A confirm step taxes every
+          deliberate use to protect against the rare accident; an undo lets the
+          common case stay one tap and still makes the accident recoverable.
+          `mergeLines` restores exactly, because the basket it merges into is
+          empty — and if the customer added something in the meantime, adding
+          the old lines on top of it is what they would expect anyway.
+        */}
         <button
           type="button"
           onClick={() => {
+            const previous = lines;
             clearCart();
-            toast.success('Basket cleared');
+            toast.success('Basket cleared', {
+              action: {
+                label: 'Undo',
+                onClick: () => mergeLines(previous),
+              },
+            });
           }}
           className="text-sm font-medium text-muted-foreground transition-colors hover:text-destructive"
         >
@@ -259,7 +278,7 @@ export function CartPage() {
       </div>
 
       {/* Sticky checkout — mobile. Sits above the tab bar, not over it. */}
-      <div className="fixed inset-x-0 bottom-[68px] z-30 border-t border-border/70 bg-background/92 px-5 py-3 backdrop-blur-xl lg:hidden">
+      <div className="fixed inset-x-0 bottom-[var(--tabbar-height)] z-30 border-t border-border/70 bg-background/92 px-5 py-3 backdrop-blur-xl lg:hidden">
         <Link
           href={`/checkout?tier=${deliveryType}`}
           aria-disabled={!canCheckout}

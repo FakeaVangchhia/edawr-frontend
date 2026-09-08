@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import {
   addAddress,
   removeAddress,
+  restoreAddress,
   selectAddress,
   selectedAddress,
   toDeliveryAddress,
@@ -183,11 +184,30 @@ export function AddressesPage() {
                       Deliver here
                     </button>
                   )}
+                  {/*
+                    Destructive and one tap, on data the customer typed by hand
+                    — house, street, locality, landmark. Re-entering that on a
+                    phone is a minute of work, so the deletion is offered back
+                    the same way the basket's "Clear all" is, rather than behind
+                    a confirmation step that would tax every deliberate use.
+
+                    The position and the selection are captured with the entry,
+                    so undoing leaves the book exactly as it was rather than
+                    appending a copy at the end.
+                  */}
                   <button
                     type="button"
                     onClick={() => {
+                      const restored = entry;
+                      const index = book.entries.findIndex((row) => row.id === entry.id);
+                      const previousSelection = book.selectedId;
                       removeAddress(entry.id);
-                      toast.success('Address removed');
+                      toast.success('Address removed', {
+                        action: {
+                          label: 'Undo',
+                          onClick: () => restoreAddress(restored, index, previousSelection),
+                        },
+                      });
                     }}
                     className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive-soft hover:text-destructive"
                   >

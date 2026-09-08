@@ -93,6 +93,10 @@ export function HomePage() {
       fetchCategories(controller.signal, { sort: 'popular' }),
     ])
       .then(([categories, products, popular]) => {
+        // Guarded like the catch below, which always was. This resolves after a
+        // round trip the customer may have navigated away from, and the abort
+        // in the cleanup does not stop an already-resolved promise from writing.
+        if (controller.signal.aborted) return;
         setData({
           categories,
           rows: buildHomeRows(products, categories),

@@ -78,6 +78,7 @@ export function SignInPage() {
       <form onSubmit={submit} noValidate>
         <div className="space-y-4">
           <AuthField
+            id="phone"
             label="Mobile number"
             value={phone}
             onChange={setPhone}
@@ -89,6 +90,7 @@ export function SignInPage() {
             disabled={submitting}
           />
           <AuthField
+            id="password"
             label="Password"
             value={password}
             onChange={setPassword}

@@ -153,7 +153,16 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="num text-sm text-muted-foreground">
+        {/*
+          A live region, because this is the only catalogue screen that filters
+          *in place*. Search and the aisle pages are URL-driven, so changing what
+          is shown changes the heading and a screen reader announces the
+          navigation. Here, picking an aisle or a sort silently swaps the grid
+          underneath: sighted customers see it, and everyone else got no signal
+          that anything had happened at all. The count was already on screen —
+          this only makes it speak.
+        */}
+        <p role="status" aria-live="polite" className="num text-sm text-muted-foreground">
           {isLoading
             ? 'Loading…'
             : `${hasMore ? `${products.length}+` : products.length} ${
