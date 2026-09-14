@@ -76,10 +76,16 @@ export function SuggestionSticker() {
     <section className="py-8" aria-labelledby="poll-heading">
       <div className="container-page">
         <div className="relative overflow-hidden rounded-4xl border border-rose/25 bg-rose-soft p-6 sm:p-8 lg:p-10">
-          {/* The sticker itself: a tilted red badge pinned to the corner. */}
+          {/* The sticker itself: a tilted red badge pinned to the corner. It
+              deliberately bleeds past the card's right edge, which the parent's
+              overflow-hidden then clips — so the padding is asymmetric on
+              purpose. Right padding carries the extra to cover the clipped
+              overhang (2rem, 2.5rem at sm), leaving the label centred in the
+              part that survives. Making it symmetric again pushes POLL onto
+              the cut. */}
           <span
             aria-hidden
-            className="absolute -right-8 top-5 rotate-12 rounded-full bg-rose px-10 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rose-foreground shadow-card sm:right-[-2.5rem] sm:top-7 sm:text-xs"
+            className="absolute -right-8 top-5 rotate-12 rounded-full bg-rose py-1.5 pl-6 pr-14 text-[11px] font-bold uppercase tracking-[0.18em] text-rose-foreground shadow-card sm:right-[-2.5rem] sm:top-7 sm:pr-16 sm:text-xs"
           >
             Poll
           </span>

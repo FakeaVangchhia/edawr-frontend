@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { connection } from 'next/server';
+import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@/components/ui/sonner';
 import { AppShell } from '@/components/AppShell';
 import { SITE_URL } from '@/lib/seo';
@@ -141,6 +142,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           mobileOffset={{ bottom: 'calc(var(--tabbar-height) + 5.5rem)' }}
           closeButton
         />
+        {/*
+          Vercel Web Analytics. Renders nothing itself; on mount it appends a
+          `<script src="/_vercel/insights/script.js">` and page views POST to
+          `/_vercel/insights/view`, both same-origin, so `connect-src 'self'`
+          in `src/proxy.ts` already covers the beacon. The injected tag needs no
+          nonce: it is created by a nonced script, and `'strict-dynamic'`
+          trusts what a trusted script creates. Off Vercel the script 404s and
+          the component stays silent.
+        */}
+        <Analytics />
       </body>
     </html>
   );
