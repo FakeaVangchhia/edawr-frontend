@@ -198,7 +198,7 @@ export function SearchOverlay({
                 <div>
                   <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     <TrendingUp className="size-3.5" aria-hidden />
-                    Browse aisles
+                    Browse categories
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categories.slice(0, 8).map((category) => (

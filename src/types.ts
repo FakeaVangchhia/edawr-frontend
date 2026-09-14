@@ -58,6 +58,23 @@ export interface StoreCategory {
   product_count: number;
 }
 
+/**
+ * A banner on the home page, from `GET /api/store/promos`.
+ *
+ * Only what the storefront needs to draw it. Whether it is live was decided
+ * server-side; the console's view of the same row carries the status and the
+ * window, and this one deliberately does not.
+ */
+export interface StorePromo {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  /** Relative `/uploads/<name>` path, or null for a banner that is title on navy. */
+  image_url: string | null;
+  /** A path on this site, or null for the full catalogue. The API refuses a URL. */
+  link: string | null;
+}
+
 /** Which delivery speed an order is on. Matches `Order.DELIVERY_TYPE_CHOICES`. */
 export type DeliveryType = 'instant' | 'slow';
 

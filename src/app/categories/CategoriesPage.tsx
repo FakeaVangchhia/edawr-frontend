@@ -17,11 +17,11 @@ import { useStoreConfig } from '@/hooks/useStoreData';
 import type { StoreCategory } from '@/types';
 
 /**
- * Every aisle in the store.
+ * Every category in the store.
  *
  * The list comes from `/api/store/categories`, which builds itself from the
  * products that actually exist rather than from the category table — so an
- * aisle with nothing sellable in it never renders as an empty shelf.
+ * category with nothing sellable in it never renders as an empty shelf.
  */
 export function CategoriesPage() {
   const config = useStoreConfig();
@@ -34,17 +34,17 @@ export function CategoriesPage() {
       .then(setCategories)
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : 'Could not load the aisles.');
+        setError(caught instanceof Error ? caught.message : 'Could not load the categories.');
       });
     return () => controller.abort();
   }, []);
 
   return (
     <div className="container-page py-10 lg:py-16">
-      <h1 className="text-3xl font-semibold lg:text-5xl">Aisles</h1>
+      <h1 className="text-3xl font-semibold lg:text-5xl">Categories</h1>
       <p className="mt-3 text-muted-foreground">
         {categories
-          ? `${categories.length} ${categories.length === 1 ? 'aisle' : 'aisles'}. Everything arrives${
+          ? `${categories.length} ${categories.length === 1 ? 'category' : 'categories'}. Everything arrives${
               config ? ` in about ${config.promise_minutes} minutes` : ' in minutes'
             }.`
           : 'Everything you need, organised for a one-second decision.'}

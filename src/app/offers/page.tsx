@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Offers',
   description:
     'Current eDawr offers: free delivery above the threshold, delivery speeds and everything reduced below MRP today.',
+  alternates: { canonical: '/offers' },
 };
 
 export default function Page() {

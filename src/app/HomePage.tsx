@@ -15,10 +15,13 @@ import { formatMoney } from '@/lib/format';
 import { fetchCategories, fetchProducts } from '@/lib/store-api';
 import { ImageFallback, ProductRail } from '@/components/ProductCard';
 import { ProductGrid } from '@/components/ProductGrid';
+import { PromoCarousel } from '@/components/PromoCarousel';
+import { SuggestionSticker } from '@/components/SuggestionSticker';
+import { ComingSoon } from '@/components/ComingSoon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { selectedAddress } from '@/lib/addresses';
 import { useAddressBook, useStoreConfig } from '@/hooks/useStoreData';
-import type { StoreCategory, StoreProduct } from '@/types';
+import type { StoreCategory, StoreProduct, StorePromo } from '@/types';
 
 /**
  * The storefront home.
@@ -48,10 +51,10 @@ const HOME_PRODUCT_LIMIT = 120;
 const SHELF_SIZE = 20;
 
 /**
- * How many aisles the hero features.
+ * How many categories the hero features.
  *
  * Two, and the number is doing work. One is a promotion and reads as an advert;
- * four is the aisle strip, which sits directly below with all of them. Two side
+ * four is the category strip, which sits directly below with all of them. Two side
  * by side stay large enough to be photographs rather than thumbnails, at every
  * width from a phone upward.
  */
@@ -62,12 +65,12 @@ interface Loaded {
   rows: ProductRow[];
   /** In-stock products, in the order the API returned them — the shop grid. */
   shelf: StoreProduct[];
-  /** The two busiest aisles, for the hero cards. */
+  /** The two busiest categories, for the hero cards. */
   featured: StoreCategory[];
   productCount: number;
 }
 
-export function HomePage() {
+export function HomePage({ promos }: { promos: StorePromo[] }) {
   const config = useStoreConfig();
   const book = useAddressBook();
   const address = selectedAddress(book);
@@ -130,8 +133,8 @@ export function HomePage() {
         something you could buy.
 
         What went, and why:
-        - The category tiles. They repeated "Shop by aisle", which sits directly
-          below with every aisle rather than four of them.
+        - The category tiles. They repeated "Shop by category", which sits directly
+          below with every category rather than four of them.
         - The stat strip's own row. The same three facts are now inline in the
           line under the headline, where they read as a sentence instead of
           occupying a bordered block.
@@ -141,7 +144,7 @@ export function HomePage() {
         a returning customer needs; the rest was for a first visit that only
         happens once.
       */}
-      <section className="border-b border-border/70">
+      <section className="border-b border-border/70 bg-gradient-to-b from-amber-soft/70 to-background">
         <div className="container-page flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-6 lg:py-8">
           <div className="animate-rise">
             <h1 className="text-[26px] font-semibold leading-[1.1] sm:text-[32px]">
@@ -155,7 +158,13 @@ export function HomePage() {
             <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Zap className="size-3.5 text-amber" aria-hidden />
-                {address ? `Deliver to ${address.label} · ${city}` : `Delivering across ${city}`}
+                {/* The street line, not the saved label — see LocationPicker. The
+                    city is appended only when the customer did not already type it. */}
+                {address
+                  ? `Deliver to ${address.line}${
+                      address.line.toLowerCase().includes(city.toLowerCase()) ? '' : `, ${city}`
+                    }`
+                  : `Delivering across ${city}`}
               </span>
               {config && (
                 <span className="inline-flex items-center gap-1.5">
@@ -166,7 +175,7 @@ export function HomePage() {
               {data && (
                 <span className="inline-flex items-center gap-1.5">
                   <PackageCheck className="size-3.5 text-amber" aria-hidden />
-                  {data.categories.length} aisles
+                  {data.categories.length} categories
                 </span>
               )}
             </p>
@@ -182,7 +191,24 @@ export function HomePage() {
         </div>
 
         {/*
-          The two most-ordered items, and "most ordered" is literal.
+          The banners, and then the two most-ordered categories beneath them.
+
+          The carousel is what the console manages — this week's push, a
+          festival, a new line — and it goes first because it is the one thing
+          on the page that is *meant* to change. The list is fetched on the
+          server by `page.tsx` and handed in, so the HTML already knows whether
+          there is anything to show: no skeleton, no band that collapses. A
+          store that has not set any up sees the page it always had, with the
+          category cards at the top.
+        */}
+        {promos.length > 0 && (
+          <div className="pb-4 lg:pb-5">
+            <PromoCarousel promos={promos} />
+          </div>
+        )}
+
+        {/*
+          The two most-ordered categories, and "most ordered" is literal.
 
           `?sort=popular` ranks by units actually sold over the last thirty
           days, counting only orders that became sales — a run of cancellations
@@ -227,15 +253,7 @@ export function HomePage() {
 
       <section className="border-b border-border/70 py-10">
         <div className="container-page">
-          <div className="mb-5 flex items-end justify-between">
-            <h2 className="text-2xl font-semibold sm:text-[28px]">Shop by aisle</h2>
-            <Link
-              href="/categories"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              View all
-            </Link>
-          </div>
+          <SectionHeading title="Shop by category" href="/categories" />
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -245,7 +263,7 @@ export function HomePage() {
                   <Link
                     key={category.name}
                     href={`/category/${slugify(category.name)}`}
-                    className="group w-28 shrink-0 text-center lg:w-auto"
+                    className="group w-28 shrink-0 rounded-3xl text-center lg:w-auto"
                   >
                     <div className="overflow-hidden rounded-3xl border border-border/70 bg-surface transition-all duration-400 ease-[var(--ease-apple)] group-hover:-translate-y-1 group-hover:shadow-card">
                       <CategoryImage category={category} />
@@ -266,37 +284,38 @@ export function HomePage() {
         The shop itself, and the reason the hero above is a band.
 
         The home page used to reach its first product only after a full-height
-        hero and an aisle strip, and then only as horizontal rails — where
+        hero and a category strip, and then only as horizontal rails — where
         anything past the fourth tile is off-screen and has to be discovered by
         swiping. A grid puts real stock in front of a customer immediately and
         shows twenty of them at once.
 
         The rails below still earn their place: they are *cuts* of the same
-        catalogue — cheapest, best discount, per aisle — which is a different
+        catalogue — cheapest, best discount, per category — which is a different
         question from "what is in the shop". This answers that one.
 
         `ProductGrid` rather than a bespoke layout, so the column counts match
         /products, /category and /search exactly. A customer who scrolls from
         here to the full catalogue should not notice the boundary.
       */}
+      {/*
+        The poll, here rather than at the foot of the page, because a question
+        nobody scrolls to is a question nobody answers. Between the category
+        strip and the grid it is seen on the first screen-and-a-half without
+        sitting above anything a customer can buy.
+      */}
+      <SuggestionSticker />
+
       <section className="py-10">
         <div className="container-page">
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold sm:text-[28px]">In the shop now</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {data
-                  ? `${data.shelf.length} of ${data.productCount} items in stock today`
-                  : 'Loading the shelves…'}
-              </p>
-            </div>
-            <Link
-              href="/products"
-              className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              View all
-            </Link>
-          </div>
+          <SectionHeading
+            title="In the shop now"
+            subtitle={
+              data
+                ? `${data.shelf.length} of ${data.productCount} items in stock today`
+                : 'Loading the shelves…'
+            }
+            href="/products"
+          />
 
           <ProductGrid
             products={data ? data.shelf.slice(0, SHELF_SIZE) : []}
@@ -320,11 +339,21 @@ export function HomePage() {
         />
       ))}
 
+      <ComingSoon />
+
       {config && (
         <section className="py-12">
           <div className="container-page">
             <div className="flex flex-col items-start justify-between gap-6 rounded-4xl bg-primary p-10 text-primary-foreground sm:flex-row sm:items-center lg:p-14">
               <div>
+                {/* The navy-ground wordmark; see AppShell's Logo for the pair. */}
+                <img
+                  src="/assets/edawr-wordmark-light.png"
+                  alt=""
+                  width={720}
+                  height={183}
+                  className="mb-5 h-6 w-auto opacity-90"
+                />
                 <h2 className="text-3xl font-semibold lg:text-4xl">
                   Free delivery over {formatMoney(config.free_delivery_above)}.
                 </h2>
@@ -349,15 +378,48 @@ export function HomePage() {
 }
 
 /**
- * One hero card: a picture of an aisle, and nothing else.
+ * A section's title row: heading, optional one-line subtitle, optional "View
+ * all". Three copies of this markup had drifted by a class or two each; the
+ * rails in `ProductCard.tsx` carry a fourth with an accent icon, which is why
+ * this is local rather than shared.
+ */
+function SectionHeading({
+  title,
+  subtitle,
+  href,
+}: {
+  title: string;
+  subtitle?: string;
+  href?: string;
+}) {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-2xl font-semibold sm:text-[28px]">{title}</h2>
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+      </div>
+      {href && (
+        <Link
+          href={href}
+          className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          View all
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One hero card: a picture of a category, and nothing else.
  *
  * **No visible label and no button, deliberately.** The whole card is the
  * target, so there is nothing on it to miss and nothing competing with the
- * image — which is the point of a card this size. The aisle strip immediately
+ * image — which is the point of a card this size. The category strip immediately
  * below carries the names, so a customer who wants to read rather than look has
  * them a few pixels away.
  *
- * "Nothing else" stops at the accessible name. `aria-label` carries the aisle,
+ * "Nothing else" stops at the accessible name. `aria-label` carries the category,
  * because a link whose only content is a decorative image announces nothing at
  * all to a screen reader — it would read as "link" and the customer would have
  * to follow it to find out where it goes. The image is `alt=""` for the same

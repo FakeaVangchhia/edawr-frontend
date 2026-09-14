@@ -132,7 +132,7 @@ export function SearchPage() {
           {categories.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Browse aisles instead
+                Browse categories instead
               </h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {categories.map((category) => (
@@ -166,7 +166,7 @@ export function SearchPage() {
               isLoading={isLoading}
               promiseMinutes={promiseMinutes}
               emptyTitle={`Nothing matches “${query}”`}
-              emptyBody="Try a shorter word, or browse the aisles."
+              emptyBody="Try a shorter word, or browse the categories."
             />
           </div>
         </>

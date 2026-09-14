@@ -9,15 +9,15 @@ import { cn } from '@/lib/utils';
 import type { StoreCategory, StoreProduct } from '@/types';
 
 /**
- * The whole catalogue, filterable by aisle.
+ * The whole catalogue, filterable by category.
  *
- * The aisle filter is a **server** filter — it re-fetches with `?category=`
+ * The category filter is a **server** filter — it re-fetches with `?category=`
  * rather than filtering an array that was already downloaded. The sort is
  * client-side, because it only reorders the page that came back; it never
  * changes which products are in it.
  *
- * Fetched data is tagged with the aisle that produced it, so a slow response
- * for one aisle cannot land after a fast one for another and show the wrong
+ * Fetched data is tagged with the category that produced it, so a slow response
+ * for one category cannot land after a fast one for another and show the wrong
  * products under the right heading. The loading flag is derived from that tag
  * rather than stored, which keeps every `setState` off the synchronous path of
  * an effect.
@@ -29,8 +29,8 @@ const ALL = 'All';
 /**
  * The loaded grid, tagged with the exact request that produced it.
  *
- * `key` is `aisle|page` rather than just the aisle, because paging adds a
- * second axis a response can be stale on: switching aisle while a "load more"
+ * `key` is `category|page` rather than just the category, because paging adds a
+ * second axis a response can be stale on: switching category while a "load more"
  * is in flight would otherwise append page 2 of Dairy under the Snacks heading.
  *
  * `exhausted` is what makes the count honest. A short page is the only
@@ -39,16 +39,16 @@ const ALL = 'All';
  */
 interface Loaded {
   key: string;
-  aisle: string;
+  category: string;
   products: StoreProduct[];
   error: string;
   exhausted: boolean;
 }
 
-const keyFor = (aisle: string, page: number) => `${aisle}|${page}`;
+const keyFor = (category: string, page: number) => `${category}|${page}`;
 
 export function ProductsPage({ initialCategory }: { initialCategory?: string }) {
-  const [aisle, setAisle] = useState(initialCategory ?? ALL);
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory ?? ALL);
   const [sort, setSort] = useState<SortKey>('recommended');
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -68,23 +68,23 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
 
   useEffect(() => {
     const controller = new AbortController();
-    const key = keyFor(aisle, page);
+    const key = keyFor(categoryFilter, page);
 
     fetchProducts(
-      { category: aisle, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
+      { category: categoryFilter, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
       controller.signal,
     )
       .then((batch) => {
         if (controller.signal.aborted) return;
         setLoaded((previous) => {
           // Page 0 replaces; a later page appends, but only onto the page
-          // immediately before it in the same aisle. Anything else is a
+          // immediately before it in the same category. Anything else is a
           // response that outlived the state it belonged to.
           const carry =
-            page > 0 && previous?.key === keyFor(aisle, page - 1) ? previous.products : [];
+            page > 0 && previous?.key === keyFor(categoryFilter, page - 1) ? previous.products : [];
           return {
             key,
-            aisle,
+            category: categoryFilter,
             products: [...carry, ...batch],
             error: '',
             // A short page is the end of the list. Asking for 60 and getting 60
@@ -97,7 +97,7 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
         if (controller.signal.aborted) return;
         setLoaded({
           key,
-          aisle,
+          category: categoryFilter,
           products: [],
           error: caught instanceof Error ? caught.message : 'Could not load the catalogue.',
           exhausted: true,
@@ -105,9 +105,9 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
       });
 
     return () => controller.abort();
-  }, [aisle, page]);
+  }, [categoryFilter, page]);
 
-  const current = loaded?.key === keyFor(aisle, page) ? loaded : null;
+  const current = loaded?.key === keyFor(categoryFilter, page) ? loaded : null;
 
   // While a *later* page is in flight, keep showing what is already on screen.
   //
@@ -116,7 +116,7 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
   // for a skeleton and then show a hundred and twenty at once — the button
   // vanishing along with them. A first load has nothing to hold on to and
   // should still show the skeleton; a subsequent page has everything.
-  const carried = loaded?.aisle === aisle ? loaded : null;
+  const carried = loaded?.category === categoryFilter ? loaded : null;
   const shown = current ?? (page > 0 ? carried : null);
 
   const isLoading = shown === null;
@@ -124,9 +124,9 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
   const products = shown ? sortProducts(shown.products, sort) : [];
   const hasMore = Boolean(shown && !shown.exhausted);
 
-  const changeAisle = (next: string) => {
-    setAisle(next);
-    // Back to the top of the new aisle. Without this, switching filters while
+  const changeCategory = (next: string) => {
+    setCategoryFilter(next);
+    // Back to the top of the new category. Without this, switching filters while
     // on page 3 asks for offset 180 of a category that may have twelve rows and
     // renders an empty grid.
     setPage(0);
@@ -136,18 +136,18 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
     <div className="container-page py-10 lg:py-16">
       <h1 className="text-3xl font-semibold lg:text-5xl">Shop everything</h1>
       <p className="mt-3 text-muted-foreground">
-        The full catalogue, filterable by aisle. Everything arrives on the same promise.
+        The full catalogue, filterable by category. Everything arrives on the same promise.
       </p>
 
       <div className="no-scrollbar -mx-5 mt-8 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
-        <FilterChip label="All" active={aisle === ALL} onClick={() => changeAisle(ALL)} />
+        <FilterChip label="All" active={categoryFilter === ALL} onClick={() => changeCategory(ALL)} />
         {categories.map((category) => (
           <FilterChip
             key={category.name}
             label={category.name}
             count={category.product_count}
-            active={aisle === category.name}
-            onClick={() => changeAisle(category.name)}
+            active={categoryFilter === category.name}
+            onClick={() => changeCategory(category.name)}
           />
         ))}
       </div>
@@ -155,9 +155,9 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         {/*
           A live region, because this is the only catalogue screen that filters
-          *in place*. Search and the aisle pages are URL-driven, so changing what
+          *in place*. Search and the category pages are URL-driven, so changing what
           is shown changes the heading and a screen reader announces the
-          navigation. Here, picking an aisle or a sort silently swaps the grid
+          navigation. Here, picking a category or a sort silently swaps the grid
           underneath: sighted customers see it, and everyone else got no signal
           that anything had happened at all. The count was already on screen —
           this only makes it speak.
@@ -193,8 +193,8 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
           products={products}
           isLoading={isLoading}
           promiseMinutes={promiseMinutes}
-          emptyTitle="This aisle is empty"
-          emptyBody="Nothing is in stock here right now. Try another aisle."
+          emptyTitle="This category is empty"
+          emptyBody="Nothing is in stock here right now. Try another category."
         />
       </div>
 

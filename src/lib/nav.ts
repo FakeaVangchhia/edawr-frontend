@@ -4,12 +4,12 @@
  * This lives in `lib/` rather than inside `AppShell` because it is pure route
  * logic and because it was silently wrong for a long time with nothing to catch
  * it. Highlighting used to be `pathname.startsWith(tab.href)`, and this app's
- * routes are singular where its tabs are plural: the aisle page is
+ * routes are singular where its tabs are plural: the category page is
  * `/category/[slug]` behind a `/categories` tab, and the tracker is
  * `/order/[token]` behind `/orders`. Neither
  * `'/category/dairy'.startsWith('/categories')` nor
  * `'/order/abc'.startsWith('/orders')` is true, so the two journeys customers
- * make most — browsing an aisle, watching an order arrive — both drew a tab bar
+ * make most — browsing a category, watching an order arrive — both drew a tab bar
  * with nothing selected at all.
  *
  * A component holding that rule could only be checked by rendering it, and this
@@ -19,7 +19,7 @@
  */
 
 /** The tab keys, in the order they appear in the bar. */
-export type TabKey = 'home' | 'aisles' | 'orders' | 'account';
+export type TabKey = 'home' | 'categories' | 'orders' | 'account';
 
 /**
  * Every route prefix a tab owns.
@@ -31,7 +31,7 @@ export type TabKey = 'home' | 'aisles' | 'orders' | 'account';
  */
 export const TAB_OWNS: Record<TabKey, readonly string[]> = {
   home: ['/'],
-  aisles: ['/categories', '/category'],
+  categories: ['/categories', '/category'],
   orders: ['/orders', '/order'],
   account: ['/account', '/addresses', '/signin', '/signup'],
 };

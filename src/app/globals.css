@@ -54,6 +54,9 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-soft: var(--destructive-soft);
+  --color-rose: var(--rose);
+  --color-rose-foreground: var(--rose-foreground);
+  --color-rose-soft: var(--rose-soft);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -119,6 +122,14 @@
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(1 0 0);
   --destructive-soft: oklch(0.968 0.02 27);
+
+  /* The poll sticker's red. Its own token rather than `destructive`, because
+     destructive means "something went wrong" everywhere else on this site and
+     a question should not look like an error. Rose on white measures ~5.1:1,
+     so unlike amber it may be ink; its foreground is white for the same reason. */
+  --rose: oklch(0.56 0.21 22);
+  --rose-foreground: oklch(1 0 0);
+  --rose-soft: oklch(0.965 0.025 22);
 
   --border: oklch(0.925 0.005 264);
   --input: oklch(0.925 0.005 264);

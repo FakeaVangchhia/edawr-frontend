@@ -61,6 +61,25 @@ const MOBILE = path.join(ROOT, 'mobile');
 
 const MASTER = path.join(FRONTEND, 'public/assets/edawr_profile_darknavy.png');
 
+/**
+ * The second master: the wordmark alone, no disc.
+ *
+ * `edawr_wordmark.png` is the amber "e" and a white "Dawr" on transparency,
+ * cut out of a raster with a soft, noisy edge — about a third of its pixels
+ * are partially transparent. It is what the storefront header shows, replacing
+ * the mark-plus-typed-name lockup, because the badge's wordmark was too small
+ * to read at 32px and the typed name was never the logo.
+ *
+ * White letters vanish on a white header, so it is shipped twice: as-is for
+ * navy grounds, and with every non-amber pixel repainted navy for light ones.
+ * Recolouring rather than redrawing keeps the letterforms and their anti-
+ * aliasing exactly as the master has them; only the hue moves.
+ */
+const WORDMARK = path.join(FRONTEND, 'public/assets/edawr_wordmark.png');
+
+/** Wide enough for a 2x header at any size the layout uses (h-8 → ~100px wide). */
+const WORDMARK_WIDTH = 720;
+
 /** The master's own palette, sampled from it rather than typed from a brand deck. */
 const NAVY = '#080E20';
 
@@ -189,6 +208,42 @@ const notificationIcon = async (size) => {
   return sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } }).png();
 };
 
+/**
+ * The wordmark, trimmed to its ink and scaled to WORDMARK_WIDTH.
+ *
+ * `trim` uses the top-left pixel as the background — transparent here — so the
+ * ragged margins the cutout left are removed and the two variants line up
+ * pixel for pixel.
+ */
+const wordmarkLight = () =>
+  sharp(WORDMARK).trim().resize({ width: WORDMARK_WIDTH }).png();
+
+/**
+ * The same, with the white repainted navy for use on light grounds.
+ *
+ * Alpha is left untouched, so the soft edge still blends — into white now
+ * rather than into navy. The amber test is the same loose one the
+ * notification icon uses.
+ */
+const wordmarkDark = async () => {
+  const { data, info } = await sharp(WORDMARK)
+    .trim()
+    .resize({ width: WORDMARK_WIDTH })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const [nr, ng, nb] = [0x08, 0x0e, 0x20]; // NAVY
+  for (let i = 0; i < data.length; i += 4) {
+    if (!isAmber(data[i], data[i + 1], data[i + 2])) {
+      data[i] = nr;
+      data[i + 1] = ng;
+      data[i + 2] = nb;
+    }
+  }
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png();
+};
+
 /* -------------------------------------------------------------------------- */
 /* .ico                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -262,6 +317,9 @@ async function main() {
   await stat(MASTER).catch(() => {
     throw new Error(`master logo missing: ${MASTER}`);
   });
+  await stat(WORDMARK).catch(() => {
+    throw new Error(`wordmark master missing: ${WORDMARK}`);
+  });
 
   /* ---- storefront ------------------------------------------------------- */
   // favicon.ico here replaces the 25,931-byte create-next-app default, which
@@ -276,6 +334,9 @@ async function main() {
   await put(path.join(FRONTEND, 'public/icon-512.png'), badgeOnNavy(512));
   await put(path.join(FRONTEND, 'public/icon-maskable-512.png'), await badgeMaskableOnNavy(512));
   await put(path.join(FRONTEND, 'public/assets/edawr-mark-512.png'), markPng(512));
+  // The header lockup and its navy-ground twin. See WORDMARK above.
+  await put(path.join(FRONTEND, 'public/assets/edawr-wordmark-dark.png'), await wordmarkDark());
+  await put(path.join(FRONTEND, 'public/assets/edawr-wordmark-light.png'), wordmarkLight());
   // The abstract navy-square-and-bolt that predates the real logo.
   await remove(path.join(FRONTEND, 'public/icon.svg'));
 
