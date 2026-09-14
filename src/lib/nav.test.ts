@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TAB_OWNS, isTabActive, under, type TabKey } from './nav';
 
 /**
- * The regression these exist for: the aisle page is `/category/[slug]` and the
+ * The regression these exist for: the category page is `/category/[slug]` and the
  * tracker is `/order/[token]`, both singular, behind plural tabs. The old
  * `startsWith(href)` rule missed both, so the two commonest journeys in the app
  * rendered a tab bar with nothing selected.
@@ -27,10 +27,10 @@ describe('under', () => {
 });
 
 describe('isTabActive', () => {
-  it('lights Aisles on a single aisle page', () => {
+  it('lights Categories on a single category page', () => {
     // `'/category/dairy'.startsWith('/categories')` is false — the whole bug.
-    expect(isTabActive('/category/dairy', 'aisles')).toBe(true);
-    expect(isTabActive('/categories', 'aisles')).toBe(true);
+    expect(isTabActive('/category/dairy', 'categories')).toBe(true);
+    expect(isTabActive('/categories', 'categories')).toBe(true);
   });
 
   it('lights Orders on the tracker', () => {

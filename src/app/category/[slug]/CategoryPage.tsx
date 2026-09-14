@@ -11,7 +11,7 @@ import { usePromiseMinutes } from '@/hooks/useStoreData';
 import type { StoreCategory, StoreProduct } from '@/types';
 
 /**
- * One aisle.
+ * One category.
  *
  * `Product.category` is free text with no id, so the URL carries a slug derived
  * from the name and this resolves it by matching derived slugs — see
@@ -19,7 +19,7 @@ import type { StoreCategory, StoreProduct } from '@/types';
  * products can be fetched, which is why this is two sequential requests rather
  * than one.
  *
- * An unrecognised slug renders a "no such aisle" state rather than calling
+ * An unrecognised slug renders a "no such category" state rather than calling
  * `notFound()`: the resolution happens in the browser, after the route has
  * already been served, and the shell around it should stay usable.
  */
@@ -56,7 +56,7 @@ export function CategoryPage({ slug }: { slug: string }) {
         setState({
           category: null,
           products: [],
-          error: caught instanceof Error ? caught.message : 'Could not load this aisle.',
+          error: caught instanceof Error ? caught.message : 'Could not load this category.',
         });
       });
 
@@ -78,13 +78,13 @@ export function CategoryPage({ slug }: { slug: string }) {
   if (state.error) {
     return (
       <div className="container-page py-20 text-center">
-        <h1 className="text-2xl font-semibold">This aisle didn&apos;t load</h1>
+        <h1 className="text-2xl font-semibold">This category didn&apos;t load</h1>
         <p className="mt-2 text-sm text-destructive">{state.error}</p>
         <Link
           href="/categories"
           className="mt-8 inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift"
         >
-          All aisles
+          All categories
         </Link>
       </div>
     );
@@ -93,15 +93,15 @@ export function CategoryPage({ slug }: { slug: string }) {
   if (!state.category) {
     return (
       <div className="container-page py-20 text-center">
-        <h1 className="text-2xl font-semibold">No such aisle</h1>
+        <h1 className="text-2xl font-semibold">No such category</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This aisle has been renamed or is no longer stocked.
+          This category has been renamed or is no longer stocked.
         </p>
         <Link
           href="/categories"
           className="mt-8 inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift"
         >
-          Browse all aisles
+          Browse all categories
         </Link>
       </div>
     );
@@ -117,7 +117,7 @@ export function CategoryPage({ slug }: { slug: string }) {
         </Link>
         <ChevronRight className="size-3.5" aria-hidden />
         <Link href="/categories" className="transition-colors hover:text-foreground">
-          Aisles
+          Categories
         </Link>
         <ChevronRight className="size-3.5" aria-hidden />
         <span className="text-foreground">{category.name}</span>
@@ -133,7 +133,7 @@ export function CategoryPage({ slug }: { slug: string }) {
           products={products}
           isLoading={false}
           promiseMinutes={promiseMinutes}
-          emptyTitle="Nothing in this aisle right now"
+          emptyTitle="Nothing in this category right now"
           emptyBody="Everything here has sold out. It will be back once the shelf is restocked."
         />
       </div>

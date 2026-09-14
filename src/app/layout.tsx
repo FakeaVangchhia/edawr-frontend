@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { connection } from 'next/server';
 import { Toaster } from '@/components/ui/sonner';
 import { AppShell } from '@/components/AppShell';
+import { SITE_URL } from '@/lib/seo';
 import './globals.css';
 
 /**
@@ -20,32 +21,63 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-const TITLE = 'eDawr — Everything you need, delivered in minutes';
+/**
+ * The place name is in the title on purpose. "Everything you need, delivered
+ * in minutes" is the brand line and stays on the page; a search for grocery
+ * delivery is a search for grocery delivery *somewhere*, and the title is the
+ * first thing Google matches against. "Aizawl" and "Mizoram" are the words a
+ * customer types.
+ */
+const TITLE = 'eDawr — Grocery delivery in Aizawl in 15 minutes';
 const DESCRIPTION =
-  'Groceries, fresh produce, snacks, beverages and household essentials delivered across Aizawl in minutes. Live tracking on every order.';
+  'Order groceries online in Aizawl, Mizoram. Fresh produce, snacks, beverages and household essentials delivered to your door in 15 minutes, with live tracking on every order.';
 
 /**
- * The origin `og:image` and `twitter:image` are resolved against.
+ * Google Search Console ownership token, if one is set.
  *
- * `src/app/opengraph-image.png` and `twitter-image.png` are file-convention
- * metadata, and Next emits them as **absolute** URLs because that is the only
- * kind a social crawler can fetch. Without a base it falls back to
- * `http://localhost:3000` and every shared link renders a broken image — a
- * build-time warning, and nothing at runtime, because the failure happens
- * inside someone else's crawler.
- *
- * Overridable so a preview deployment advertises its own cards, but with a real
- * default: the alternative is remembering to set a variable whose absence is
- * invisible until a customer shares the shop.
+ * Pasting the `<meta name="google-site-verification">` content here is the
+ * quickest of the verification methods and the only one that ships with the
+ * code. Optional: DNS verification works without it, and an unset variable
+ * emits nothing.
  */
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://edawr.in';
+const GOOGLE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
 
+/**
+ * `metadataBase` is the origin `og:image`, `twitter:image` and every
+ * canonical URL are resolved against — see `lib/seo.ts` for why it lives
+ * there. Next emits the file-convention images as **absolute** URLs because
+ * that is the only kind a crawler can fetch; without a base it falls back to
+ * `http://localhost:3000`, silently, inside someone else's crawler.
+ */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: TITLE, template: '%s | eDawr' },
   description: DESCRIPTION,
   applicationName: 'eDawr',
   manifest: '/manifest.webmanifest',
+  keywords: [
+    'grocery delivery Aizawl',
+    'online grocery Mizoram',
+    'quick commerce Aizawl',
+    '15 minute delivery',
+    'eDawr',
+  ],
+  // The defaults, spelled out: index everything that does not say otherwise,
+  // and let Google show a large product image and a full snippet. The
+  // per-customer pages (cart, checkout, account, tracking) each override this
+  // with `noindex`, and `robots.ts` keeps crawlers off them entirely.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  ...(GOOGLE_VERIFICATION ? { verification: { google: GOOGLE_VERIFICATION } } : {}),
   openGraph: {
     siteName: 'eDawr',
     title: TITLE,

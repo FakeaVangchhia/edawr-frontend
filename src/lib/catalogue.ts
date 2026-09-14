@@ -116,7 +116,7 @@ export function buildHomeRows(
     });
   }
 
-  // Then the store's own aisles, in the order the manager sorted them. Three is
+  // Then the store's own categories, in the order the manager sorted them. Three is
   // enough to give the page rhythm without turning it into the full catalogue,
   // which is what /products is for.
   for (const category of categories.slice(0, 3)) {

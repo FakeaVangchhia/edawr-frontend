@@ -40,35 +40,38 @@ import { readSession, saveSession } from '@/lib/session';
  */
 
 /**
- * The header and footer lockup.
+ * The header and footer lockup: the wordmark, and nothing beside it.
  *
- * The tile is the real logo, not a stand-in: `edawr-mark-512.png` is the amber
- * "e" cut out of `public/assets/edawr_profile_darknavy.png` by
- * `scripts/generate-brand-assets.mjs`, which is the source of every icon in the
- * estate. It used to be a lucide <Zap>, chosen because there was no logo file
- * to point at.
+ * `edawr-wordmark-dark.png` is the real logo — the amber "e" and "Dawr" from
+ * `public/assets/edawr_wordmark.png`, with the white letters repainted navy by
+ * `scripts/generate-brand-assets.mjs` so they survive a white header. The
+ * light-ground twin, `edawr-wordmark-light.png`, is for the navy band on the
+ * home page. Both come from that script; do not hand-edit either.
  *
- * The mark rather than the whole badge, because the badge's entire content is
- * the word "eDawr" and at 32px that wordmark is about four pixels tall. The
- * name is set beside it in real type instead, where it stays legible.
+ * This replaces a lockup of the amber "e" cut from the disc badge beside the
+ * name set in Inter. That was a workaround for the badge's wordmark being four
+ * pixels tall at 32px, and the typed name was never the logo. The wordmark is
+ * 720x183, so at `h-8` it is ~126px wide — legible, and narrower than the old
+ * pair.
+ *
+ * `alt="eDawr"` rather than an `aria-label` on the link plus `alt=""`: the
+ * image *is* the name now, so it carries it.
  *
  * Plain <img>, like the product images: `next/image` would want the file
- * through its optimiser for a 32px asset that is already 22 KB and cached
- * forever, which buys nothing and costs a round trip.
+ * through its optimiser for a 40 KB asset that is cached forever, which buys
+ * nothing and costs a round trip.
  */
 function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2" aria-label="eDawr home">
+    <Link href="/" className="flex shrink-0 items-center">
       {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
       <img
-        src="/assets/edawr-mark-512.png"
-        alt=""
-        width={32}
-        height={32}
-        className="size-8 rounded-xl"
-        aria-hidden
+        src="/assets/edawr-wordmark-dark.png"
+        alt="eDawr"
+        width={720}
+        height={183}
+        className="h-7 w-auto lg:h-8"
       />
-      <span className="text-[17px] font-semibold tracking-tight">eDawr</span>
     </Link>
   );
 }
@@ -106,15 +109,23 @@ function LocationPicker({ compact }: { compact?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full px-3 py-2 text-left transition-colors hover:bg-secondary">
-        <MapPin className="size-4 text-amber" aria-hidden />
-        <span className="leading-tight">
-          <span className="block text-[11px] text-muted-foreground">Deliver to</span>
-          <span className="block text-[13px] font-medium">
-            {current.label}
+        <MapPin className="size-4 shrink-0 text-amber" aria-hidden />
+        {/*
+          The street line, not the saved label. "Home · Aizawl" told a customer
+          which entry was selected; it did not tell them where the rider is
+          going, and two entries can both be called Home. The label moves up
+          into the caption, where it still says which one this is.
+        */}
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-[11px] text-muted-foreground">
+            Deliver to {current.label}
             {city ? ` · ${city}` : ''}
           </span>
+          <span className="block max-w-[16rem] truncate text-[13px] font-medium lg:max-w-[20rem]">
+            {current.line}
+          </span>
         </span>
-        {!compact && <ChevronDown className="size-4 text-muted-foreground" aria-hidden />}
+        {!compact && <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 rounded-2xl p-2">
         <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -437,7 +448,7 @@ function FooterCol({ title, links }: { title: string; links: Array<[string, stri
  */
 const TABS: Array<{ key: TabKey; href: string; label: string; icon: typeof Home }> = [
   { key: 'home', href: '/', label: 'Home', icon: Home },
-  { key: 'aisles', href: '/categories', label: 'Aisles', icon: Grid2X2 },
+  { key: 'categories', href: '/categories', label: 'Categories', icon: Grid2X2 },
   { key: 'orders', href: '/orders', label: 'Orders', icon: Package },
   { key: 'account', href: '/account', label: 'Account', icon: User },
 ];

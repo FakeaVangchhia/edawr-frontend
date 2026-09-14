@@ -23,10 +23,10 @@ npm run dev               # http://localhost:3000
 
 | Path | What it is |
 |---|---|
-| `/` | Hero, aisle rail and merchandising rows derived from the live catalogue |
-| `/products` | The full catalogue, filtered by aisle server-side |
-| `/categories` | Every aisle the store actually stocks |
-| `/category/[slug]` | One aisle. The slug is derived from the category name |
+| `/` | Hero, category rail and merchandising rows derived from the live catalogue |
+| `/products` | The full catalogue, filtered by category server-side |
+| `/categories` | Every category the store actually stocks |
+| `/category/[slug]` | One category. The slug is derived from the category name |
 | `/product/[id]` | One product, from `/api/store/products/{id}` |
 | `/search` | Results from `/api/store/products?q=`, plus the ⌘K overlay |
 | `/cart` | The basket, priced by `/api/store/quote` |

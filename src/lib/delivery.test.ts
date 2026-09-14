@@ -33,7 +33,7 @@ function config(overrides: Partial<StoreConfig> = {}): StoreConfig {
     store_city: 'Aizawl',
     delivery_tiers: [
       { key: 'instant', label: 'Instant', fee: 15, promise_minutes: 15 },
-      { key: 'slow', label: 'Slow', fee: 5, promise_minutes: 45 },
+      { key: 'slow', label: 'Saver', fee: 5, promise_minutes: 45 },
     ],
     free_delivery_above: 199,
     handling_fee: 5,

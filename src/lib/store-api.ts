@@ -8,16 +8,18 @@ import type {
   StoreCategory,
   StoreConfig,
   StoreProduct,
+  StorePromo,
   TrackedOrder,
 } from '@/types';
 
 /**
  * The public storefront endpoints, typed.
  *
- * Every call here is anonymous, with exactly one exception: `placeOrder`
- * attaches the customer's token when there is one, so the order can be linked
- * to their account. It is still a public endpoint and still works with no token
- * at all — guest checkout is the main path, not a fallback. Everything in the
+ * Every call here is anonymous, with exactly two exceptions: `placeOrder` and
+ * `submitSuggestion` attach the customer's token when there is one, so the
+ * order — or the answer — can be linked to their account. Both are still
+ * public endpoints and still work with no token at all — guest checkout is the
+ * main path, not a fallback. Everything in the
  * account's own surface lives in `customer-api.ts`.
  *
  * The order endpoints are keyed on an unguessable tracking token rather than an
@@ -46,9 +48,34 @@ export function fetchStoreConfig(signal?: AbortSignal): Promise<StoreConfig> {
   return request<StoreConfig>('/api/store/config', { signal });
 }
 
+/** The home-page banners, in the order the console arranged them. */
+export function fetchPromos(signal?: AbortSignal): Promise<StorePromo[]> {
+  return request<StorePromo[]>('/api/store/promos', { signal });
+}
+
+/**
+ * One answer to the poll sticker.
+ *
+ * Signed in, the token goes along so the store can ring back; signed out, no
+ * header is sent and the answer is a guest's. Same shape as `placeOrder`'s
+ * opt-in — explicit here rather than through `authRequest`, because a public
+ * endpoint that carries a token is the exception worth seeing at the call
+ * site. Unlike checkout there is no guest retry on a stale token: a suggestion
+ * is not money, and the interceptor has already cleared the session, so the
+ * customer can simply send it again.
+ */
+export function submitSuggestion(text: string): Promise<{ id: number }> {
+  const token = readToken();
+  return request<{ id: number }>('/api/store/suggestions', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: { text },
+  });
+}
+
 export interface CategoryQuery {
   /**
-   * `'popular'` orders aisles by units sold across their products in the last
+   * `'popular'` orders categories by units sold across their products in the last
    * 30 days, over orders that became sales. Omitted keeps the manager's own
    * `sort_order`, which exists so the shop front is a decision rather than an
    * accident.

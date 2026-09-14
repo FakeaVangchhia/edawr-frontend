@@ -16,7 +16,7 @@ export function ProductGrid({
   isLoading,
   promiseMinutes = null,
   emptyTitle = 'Nothing here yet',
-  emptyBody = 'Try another aisle, or search for something specific.',
+  emptyBody = 'Try another category, or search for something specific.',
 }: {
   products: StoreProduct[];
   isLoading: boolean;

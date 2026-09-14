@@ -29,7 +29,9 @@ export const DEFAULT_DELIVERY_TYPE: DeliveryType = 'instant';
  */
 export const FALLBACK_TIERS: DeliveryTier[] = [
   { key: 'instant', label: 'Instant', fee: 15, promise_minutes: 15 },
-  { key: 'slow', label: 'Slow', fee: 5, promise_minutes: 45 },
+  // The key is the tier's identity and stays `slow`; the label is what a
+  // customer reads, and "Saver" says what they get for choosing it.
+  { key: 'slow', label: 'Saver', fee: 5, promise_minutes: 45 },
 ];
 
 /** The store's tiers, fastest first, or the shipped defaults. */

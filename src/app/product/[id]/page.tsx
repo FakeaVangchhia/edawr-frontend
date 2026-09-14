@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ProductPage } from './ProductPage';
+import { JsonLd } from '@/components/JsonLd';
+import { assetUrl } from '@/lib/api';
 import { fetchProduct } from '@/lib/store-api';
+import { breadcrumbJsonLd, categoryPath, productJsonLd, productPath, seoSignal } from '@/lib/seo';
 
 /**
  * `params` is a Promise in this version of Next.js and must be awaited.
@@ -21,13 +24,23 @@ export async function generateMetadata({
   if (!Number.isInteger(numeric)) return { title: 'Product' };
 
   try {
-    const product = await fetchProduct(numeric);
+    const product = await fetchProduct(numeric, seoSignal());
     const description =
-      product.description ?? `${product.name}${product.unit ? ` · ${product.unit}` : ''}`;
+      product.description ??
+      `${product.name}${product.unit ? ` · ${product.unit}` : ''} — delivered across Aizawl in minutes by eDawr.`;
+    const image = assetUrl(product.image_url);
     return {
       title: product.name,
       description,
-      openGraph: { title: product.name, description, type: 'website' },
+      alternates: { canonical: productPath(product.id) },
+      openGraph: {
+        title: product.name,
+        description,
+        type: 'website',
+        // The product's own photo on a shared link, falling back to the
+        // file-convention card when there is none.
+        ...(image ? { images: [{ url: image, alt: product.name }] } : {}),
+      },
     };
   } catch {
     // An unreachable API must not fail the render — the page below shows its
@@ -43,5 +56,29 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // 404 on anything else, so reject it here rather than firing a doomed request.
   if (!Number.isInteger(numeric) || numeric <= 0) notFound();
 
-  return <ProductPage id={numeric} />;
+  // Fetched a second time for the structured data, like the metadata above,
+  // and for the same reason: a crawler reads the HTML and runs nothing. A
+  // failed fetch drops the JSON-LD and renders the page, whose own error
+  // state handles the rest.
+  const product = await fetchProduct(numeric, seoSignal()).catch(() => null);
+
+  return (
+    <>
+      {product && (
+        <>
+          <JsonLd data={productJsonLd(product)} />
+          <JsonLd
+            data={breadcrumbJsonLd([
+              { name: 'Home', path: '/' },
+              ...(product.category
+                ? [{ name: product.category, path: categoryPath(product.category) }]
+                : []),
+              { name: product.name, path: productPath(product.id) },
+            ])}
+          />
+        </>
+      )}
+      <ProductPage id={numeric} />
+    </>
+  );
 }
