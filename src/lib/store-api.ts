@@ -155,7 +155,7 @@ export function fetchProduct(id: number, signal?: AbortSignal): Promise<StorePro
 }
 
 /** The wire format the checkout and quote endpoints expect. */
-export function toBasketItems(lines: CartLine[]) {
+function toBasketItems(lines: CartLine[]) {
   return lines.map((line) => ({
     product_id: line.product.id,
     quantity: line.quantity,
@@ -199,8 +199,8 @@ export interface CheckoutDetails {
    *
    * When present the server checks it against the delivery radius and uses it
    * to rank riders. When absent the order is stored with NULL coordinates,
-   * which is the honest record — the columns used to default to the store's own
-   * position, which made every such order read as 0.00 km from every rider.
+   * which is the honest record — a position defaulted to the store's own would
+   * make every such order read as 0.00 km from every rider.
    */
   customer_latitude?: number;
   customer_longitude?: number;

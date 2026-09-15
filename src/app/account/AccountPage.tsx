@@ -6,7 +6,6 @@ import { ChevronRight, Info, LogOut, MapPin, Package, Trash2, User } from 'lucid
 import { toast } from 'sonner';
 import { selectedAddress, toDeliveryAddress } from '@/lib/addresses';
 import { clearProfile, hasProfile, saveProfile } from '@/lib/profile';
-import { formatMoneyExact } from '@/lib/format';
 import { isValidIndianMobile, isValidName } from '@/lib/validation';
 import { useAddressBook, useProfile, useRecentOrders, useSession } from '@/hooks/useStoreData';
 import { changePassword, signOut, updateName } from '@/lib/customer-api';
@@ -22,14 +21,12 @@ import { cn } from '@/lib/utils';
  * main path and stays that way — so this page has to make sense for someone who
  * has never created an account and for someone who has.
  *
- * It used to say, in a docstring and on the page, that eDawr has no customer
- * sign-in. That was true and carefully written, and it is now false; the honest
- * version today is the paragraph about **verification**, which is genuinely
- * awkward and belongs on the screen rather than in a support article. A customer
- * who signs in and finds their earlier orders missing will otherwise assume the
- * shop lost them, when what has actually happened is that a password proves you
- * know a number and not that you hold the SIM — and nothing can prove the second
- * until there is an SMS provider.
+ * The awkward truth on this screen is the paragraph about **verification**,
+ * and it belongs here rather than in a support article. A customer who signs
+ * in and finds their earlier orders missing will otherwise assume the shop
+ * lost them, when what has actually happened is that a password proves you
+ * know a number and not that you hold the SIM — and nothing can prove the
+ * second until there is an SMS provider.
  */
 /**
  * The account card: an invitation when signed out, the account when signed in.
@@ -169,24 +166,14 @@ function AccountPanel() {
         </label>
 
         {/*
-          The honest surfacing of the verification rule. It is a disabled
-          control rather than a hidden one: a customer who signs in and sees no
-          earlier orders needs to know why, and "we cannot send codes yet" is a
-          better answer than a page that silently omits them.
+          The honest surfacing of the verification rule. A note rather than a
+          button: there is no verification flow to start, and a control that
+          can never be pressed is worse than a sentence that says why. A
+          customer who signs in and sees no earlier orders needs to know why.
         */}
         {!session.phoneVerified && (
           <div className="rounded-2xl bg-surface p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">Number not verified</span>
-              <button
-                type="button"
-                disabled
-                title="We cannot send verification codes yet."
-                className="inline-flex h-9 cursor-not-allowed items-center rounded-full border border-border px-4 text-xs font-medium opacity-50"
-              >
-                Verify
-              </button>
-            </div>
+            <span className="text-sm font-medium">Number not verified</span>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               We cannot send verification codes yet. Orders you place while signed in are saved to
               your account either way — but orders placed as a guest, before this account existed,
@@ -298,16 +285,12 @@ export function AccountPage() {
   /**
    * Whether each field is wrong, and separately whether to *say so yet*.
    *
-   * These used to be one value each, gated on `touched`. `save()` sets `touched`
-   * and then read them — but they are derived from the render that is still on
-   * screen, where `touched` is false, so on the first press both were false
-   * whatever was in the boxes. Typing `123` as a mobile number and pressing Save
-   * stored it and said "Saved on this device"; the field only turned red
-   * afterwards, and only a *second* press was blocked. That number then prefills
-   * checkout, so the rider gets a number that cannot be rung.
-   *
-   * `touched` now governs presentation only. Validity is the same expression in
-   * both places because it is the same expression, not a copy of it.
+   * Two values rather than one gated on `touched`, because `save()` sets
+   * `touched` and then reads validity from the render still on screen — where
+   * `touched` is false. Folding the two together would let a first press store
+   * `123` as a mobile number, say "Saved on this device", and only turn the
+   * field red afterwards; that number then prefills checkout, so the rider
+   * gets a number that cannot be rung. `touched` governs presentation only.
    */
   const nameInvalid = name.trim() !== '' && !isValidName(name);
   const phoneInvalid = phone.trim() !== '' && !isValidIndianMobile(phone);
@@ -322,7 +305,6 @@ export function AccountPage() {
   };
 
   const liveOrders = orders.length;
-  const spent = orders.reduce((total, order) => total + order.total, 0);
 
   return (
     <div className="container-page py-10 lg:py-16">
@@ -447,14 +429,13 @@ export function AccountPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 On this device
               </h2>
+              {/* No "total spent" beside it: summing the remembered totals in
+                  floating point is the client-side pricing this app forbids,
+                  and the figure is the server's to give. */}
               <dl className="mt-4 space-y-4">
                 <div>
                   <dt className="text-xs text-muted-foreground">Orders remembered</dt>
                   <dd className="num mt-0.5 text-2xl font-semibold">{liveOrders}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Their total</dt>
-                  <dd className="num mt-0.5 text-2xl font-semibold">{formatMoneyExact(spent)}</dd>
                 </div>
               </dl>
             </div>

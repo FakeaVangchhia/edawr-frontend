@@ -14,7 +14,6 @@
  */
 
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 
 export function AuthShell({
   title,
@@ -43,85 +42,6 @@ export function AuthShell({
   );
 }
 
-export function AuthField({
-  label,
-  value,
-  onChange,
-  id,
-  type = 'text',
-  placeholder,
-  hint,
-  error,
-  inputMode,
-  autoComplete,
-  disabled,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: 'text' | 'tel' | 'password';
-  placeholder?: string;
-  hint?: string;
-  error?: string;
-  inputMode?: 'tel' | 'text';
-  autoComplete?: string;
-  disabled?: boolean;
-}) {
-  // Whichever line is actually rendered below is the one the input points at.
-  const noteId = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
-
-  return (
-    <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      <input
-        // `id` and `name` are here for the browser and the password manager, not
-        // for us: an unnamed input is one autofill has nothing stable to attach
-        // a saved credential to, which on a sign-in form is the difference
-        // between one tap and typing a password on a phone.
-        id={id}
-        name={id}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        // `aria-invalid` alone says only *that* the field is wrong. The
-        // sentence saying what is wrong with it — or the hint explaining what
-        // is wanted — sat in a span nothing pointed at, so a screen reader
-        // announced an invalid field and no reason. Same fix as checkout's.
-        aria-describedby={noteId}
-        className={cn(
-          'mt-2 h-12 w-full rounded-2xl border bg-background px-4 text-sm outline-none transition-colors',
-          'disabled:cursor-not-allowed disabled:opacity-60',
-          error ? 'border-destructive' : 'border-border focus:border-primary/25',
-        )}
-      />
-      {error ? (
-        <span id={noteId} role="alert" className="mt-1.5 block text-xs text-destructive">
-          {error}
-        </span>
-      ) : hint ? (
-        <span id={noteId} className="mt-1.5 block text-xs text-muted-foreground">
-          {hint}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-
-/**
- * The form-level failure.
- *
- * **Always mounted when there is a message**, with `role="alert"` and
- * `aria-live`, so a screen reader announces a rejected password instead of
- * leaving someone staring at a form that did nothing.
- */
 export function AuthError({ message }: { message: string }) {
   if (!message) return null;
   return (

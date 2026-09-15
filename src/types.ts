@@ -1,36 +1,12 @@
 /**
- * Shapes returned by the Django API.
+ * Shapes returned by the Django API, as the storefront sees them.
  *
  * These are hand-written rather than generated, so the rule is: if you change a
- * serializer in `backend/api/serializers.py`, change the matching type here in
- * the same commit. The `StoreProduct` / `Product` split is the one that matters
- * most — it mirrors two different serializers on purpose, and the storefront
- * must never be handed the admin shape.
+ * serializer in `edawr-backend/api/serializers.py`, change the matching type
+ * here in the same commit. Only the *public* shapes are here — the API's
+ * `StoreProductSerializer`, never `ProductSerializer` with its cost price and
+ * supplier; the console has its own types for those.
  */
-
-/** The admin view of a product: includes margin and supplier data. */
-export interface Product {
-  id: number;
-  name: string;
-  sku: string | null;
-  barcode: string | null;
-  category: string | null;
-  brand: string | null;
-  unit: string | null;
-  price: number;
-  cost_price: number;
-  mrp: number;
-  stock: number;
-  reorder_level: number;
-  status: string;
-  location: string | null;
-  supplier_name: string | null;
-  supplier_phone: string | null;
-  description: string | null;
-  image_url: string | null;
-  discount_percent: number;
-  created_at: string;
-}
 
 /**
  * The public view of a product. Deliberately narrower: no cost price, no
@@ -50,6 +26,8 @@ export interface StoreProduct {
   in_stock: boolean;
   low_stock: boolean;
   discount_percent: number;
+  /** Rupees off MRP, quantised by the server. 0 when there is no discount. */
+  saving: number;
 }
 
 export interface StoreCategory {
@@ -246,48 +224,6 @@ export interface TrackedOrder {
   cancelled_at: string | null;
   rider: RiderSummary | null;
   items: OrderItem[];
-}
-
-/** The full internal view, for the admin console. */
-export interface Order extends Omit<TrackedOrder, 'rider' | 'can_cancel'> {
-  /** Null when the customer did not share a position. Never the store's own. */
-  customer_latitude: number | null;
-  customer_longitude: number | null;
-  delivery_boy_id: number | null;
-  offered_distance_km: number | null;
-  fulfilment_minutes: number | null;
-  rider: RiderSummary | null;
-}
-
-export type Role = 'manager' | 'delivery';
-
-export interface User {
-  id: number;
-  name: string;
-  role: Role;
-  phone: string;
-  is_active: boolean;
-  is_available: boolean;
-  base_latitude?: number;
-  base_longitude?: number;
-  service_radius_km?: number;
-  created_at?: string;
-}
-
-export interface Category {
-  id: number;
-  name: string;
-  description: string | null;
-  parent_id: number | null;
-  image_url: string | null;
-  sort_order: number;
-  status: string;
-  created_at?: string;
-}
-
-export interface AdminSession {
-  username: string;
-  accessToken: string;
 }
 
 /** One line in the basket: the product, plus how many of it. */

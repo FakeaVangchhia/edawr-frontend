@@ -27,7 +27,7 @@ import type { BasketQuote, DeliveryType, StoreConfig } from '@/types';
  * delivery is free before the store has said so is a promise the bill then
  * breaks.
  */
-function BillRow({
+export function BillRow({
   label,
   value,
   hint,

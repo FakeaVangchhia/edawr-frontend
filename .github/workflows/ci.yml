@@ -1,0 +1,70 @@
+# Lint, typecheck, test and production-build the storefront on every push and
+# pull request. This repository holds the storefront alone; the API
+# (`edawr-backend`), the console (`edawr-admin`) and the two Expo apps
+# each have their own, and a job that reaches outside its own repository is a
+# job that breaks whenever anything around it moves.
+#
+# Counts are deliberately not written down. They go stale within a fortnight,
+# which teaches the next reader to distrust the comment rather than update it.
+# `npm test` reports the truth.
+
+name: CI
+
+on:
+  push:
+    branches: [master, remote]
+  pull_request:
+
+# A new push to the same branch makes the previous run irrelevant. Without this
+# a busy afternoon queues five runs of a commit nobody will look at.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  console:
+    name: Console
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # `ci` rather than `install`: it installs exactly the lockfile and fails
+      # if package.json disagrees with it, rather than quietly resolving
+      # something nobody has run.
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Before the tests, and separately from the build. `next build` does
+      # typecheck, but it is the slowest step in the job and it runs last — a
+      # one-character type error should not cost a full production build
+      # before anything says so.
+      - run: npx tsc --noEmit
+
+      - run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Read at build time by src/proxy.ts to name the API origin in the
+          # CSP. Any syntactically valid URL will do here — nothing is fetched.
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
+
+      - name: Every route must be server-rendered
+        run: |
+          # `_global-error.html` is the one legitimate prerender: it has to be
+          # servable when rendering itself has failed. Anything else in here is
+          # a page whose <script> tags carry no CSP nonce, and `strict-dynamic`
+          # means the browser will refuse every one of them.
+          stray=$(find .next/server/app -name '*.html' ! -name '_global-error.html')
+          if [ -n "$stray" ]; then
+            echo "::error::Prerendered pages found — the root layout has stopped reading the request (headers()):"
+            echo "$stray"
+            exit 1
+          fi

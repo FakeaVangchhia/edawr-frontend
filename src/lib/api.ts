@@ -24,17 +24,16 @@ import { clearSession, readToken } from './session';
 
 const rawApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 
-export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
+const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
 
 const isAbsoluteUrl = (value: string) => /^[a-z][a-z\d+\-.]*:\/\//i.test(value);
 
 export const apiUrl = (path: string) => {
-  if (!path) return API_BASE_URL || '';
+  if (!path) return API_BASE_URL;
   if (isAbsoluteUrl(path)) return path;
   if (!API_BASE_URL) return path;
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 };
-
 
 /**
  * Where product images are read from. Unset, they resolve against the API,
@@ -52,11 +51,9 @@ const MEDIA_BASE_URL =
  * Product and category images are stored as relative paths ("/uploads/x.png"),
  * so the hostname is never baked into the database. This puts one back.
  *
- * **Which host is the question this answers.** The API used to serve the files
- * itself off a mounted disk; they now live in a Cloudflare R2 bucket, and the
- * browser fetches them straight from it. The stored path did not change — the
- * R2 object key is that same path without its leading slash — so the whole
- * migration lands here, in which base gets prefixed.
+ * **Which host is the question this answers.** The files live in a Cloudflare
+ * R2 bucket and the browser fetches them straight from it; the R2 object key
+ * is the stored path without its leading slash, so only the base differs.
  *
  * Absolute values pass through untouched: seeded placeholders on someone
  * else's CDN still work, and so would a future where the API returns whole
@@ -94,8 +91,8 @@ export class ApiError extends Error {
    * this split: 401 means "I do not know who you are", which is what should
    * make a client discard its stored token; 403 means "I know who you are and
    * you may not do this", which must leave the customer signed in. Conflating
-   * them — as this getter used to — signs someone out of the whole storefront
-   * the first time they touch something they merely lack rights to.
+   * them would sign someone out of the whole storefront the first time they
+   * touched something they merely lack rights to.
    */
   get isUnauthenticated() {
     return this.status === 401;
@@ -244,12 +241,13 @@ async function attemptRequest<T>(
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    // **401 only, and never from a bare catch.** A dropped connection, a CORS
-    // misconfiguration and a blocked request all arrive as thrown errors too,
-    // and deleting a valid token because the wifi went is how a customer gets
-    // signed out on a train. This branch fires only when the server itself
-    // said it does not recognise the credential.
-    if (response.status === 401) {
+    // **401 to a request that sent a token, and never from a bare catch.** A
+    // dropped connection, a CORS misconfiguration and a blocked request all
+    // arrive as thrown errors too, and deleting a valid token because the wifi
+    // went is how a customer gets signed out on a train. A 401 to the sign-in
+    // form is a wrong password, and there is no session to end — without the
+    // header check that mistyped password toasted "You have been signed out".
+    if (response.status === 401 && requestHeaders.has('Authorization')) {
       clearSession();
       onSessionExpired?.();
     }

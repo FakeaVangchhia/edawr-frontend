@@ -9,6 +9,7 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePromiseMinutes } from '@/hooks/useStoreData';
 import type { StoreCategory, StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * One category.
@@ -50,7 +51,7 @@ export function CategoryPage({ slug }: { slug: string }) {
         );
         return { category, products, error: '' };
       })
-      .then(setState)
+      .then(unlessAborted(controller.signal, setState))
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         setState({
@@ -124,8 +125,10 @@ export function CategoryPage({ slug }: { slug: string }) {
       </nav>
 
       <h1 className="mt-6 text-3xl font-semibold lg:text-5xl">{category.name}</h1>
+      {/* The category's own count, not the length of this page: the page is
+          capped, and it includes items that are sold out today. */}
       <p className="num mt-3 text-muted-foreground">
-        {products.length} {products.length === 1 ? 'item' : 'items'} in stock
+        {category.product_count} {category.product_count === 1 ? 'item' : 'items'}
       </p>
 
       <div className="mt-10">
@@ -137,6 +140,20 @@ export function CategoryPage({ slug }: { slug: string }) {
           emptyBody="Everything here has sold out. It will be back once the shelf is restocked."
         />
       </div>
+
+      {/* One page, capped, so a big category hands over to the catalogue's
+          filter, which pages. */}
+      {category.product_count > products.length && (
+        <p className="mt-8 text-sm text-muted-foreground">
+          Showing the first {products.length}.{' '}
+          <Link
+            href={`/products?category=${encodeURIComponent(category.name)}`}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            See all {category.product_count} in the catalogue
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

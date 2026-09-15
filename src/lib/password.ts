@@ -13,11 +13,11 @@
  * is not shipped to the browser to save a round trip — the server catches it,
  * and `PASSWORD_HINT` sets the expectation before anyone types.
  *
- * Kept pure and out of the components so it can be tested; `frontend/` has no
+ * Kept pure and out of the components so it can be tested; this package has no
  * Testing Library, so logic that is not extracted is logic that is not covered.
  */
 
-export const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 8;
 
 export const PASSWORD_HINT =
   'At least 8 characters. Not all numbers, and not your phone number.';

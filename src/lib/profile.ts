@@ -1,10 +1,10 @@
 /**
  * Who the customer is, on this device only.
  *
- * Not an account — there is no customer auth in this API and nothing here is
- * verified. It is the name and phone number the last order was placed with, so
- * the next order does not ask again. The rider needs a name to ask for and a
- * number to call; remembering them locally is the whole of it.
+ * Not the account. It is the name and phone number the last order was placed
+ * with, remembered so the next order does not ask again — for a guest, and
+ * for a signed-in customer ordering for somebody else. The rider needs a name
+ * to ask for and a number to call; remembering them locally is the whole of it.
  *
  * Kept apart from `addresses.ts` because the two change on different occasions:
  * a phone number is set once, an address book is edited. One key per concern

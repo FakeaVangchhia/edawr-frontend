@@ -17,8 +17,8 @@ import { ImageFallback, ProductRail } from '@/components/ProductCard';
 import { ProductGrid } from '@/components/ProductGrid';
 import { PromoCarousel } from '@/components/PromoCarousel';
 import { SuggestionSticker } from '@/components/SuggestionSticker';
-import { ComingSoon } from '@/components/ComingSoon';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SectionHeading } from '@/components/SectionHeading';
 import { selectedAddress } from '@/lib/addresses';
 import { useAddressBook, useStoreConfig } from '@/hooks/useStoreData';
 import type { StoreCategory, StoreProduct, StorePromo } from '@/types';
@@ -67,7 +67,6 @@ interface Loaded {
   shelf: StoreProduct[];
   /** The two busiest categories, for the hero cards. */
   featured: StoreCategory[];
-  productCount: number;
 }
 
 export function HomePage({ promos }: { promos: StorePromo[] }) {
@@ -107,7 +106,6 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
           // the grid below never renders a short row of tiles nobody can buy.
           shelf: products.filter((product) => product.in_stock),
           featured: popular.slice(0, FEATURED_COUNT),
-          productCount: products.length,
         });
       })
       .catch((caught: unknown) => {
@@ -124,25 +122,13 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
   return (
     <>
       {/*
-        A band, not a landing page.
-
-        This used to be a two-column hero at `lg:py-24` with a 68px headline, a
-        three-stat strip and a 2x2 grid of category tiles — most of a laptop
-        viewport, and every pixel of it above the first product. For a shop
-        whose whole promise is speed, the slowest thing on the page was reaching
-        something you could buy.
-
-        What went, and why:
-        - The category tiles. They repeated "Shop by category", which sits directly
-          below with every category rather than four of them.
-        - The stat strip's own row. The same three facts are now inline in the
-          line under the headline, where they read as a sentence instead of
-          occupying a bordered block.
-        - Two thirds of the type scale and most of the padding.
-
-        What stayed: the promise, the city, and one primary action. That is what
-        a returning customer needs; the rest was for a first visit that only
-        happens once.
+        A band, not a landing page. For a shop whose whole promise is speed,
+        the slowest thing on the page must not be reaching something you can
+        buy — so the hero is one line: the promise, the city, and one primary
+        action, which is what a returning customer needs. A full-height hero
+        with category tiles and a stat strip is for a first visit that only
+        happens once, and "Shop by category" sits directly below with every
+        category rather than four of them.
       */}
       <section className="border-b border-border/70 bg-gradient-to-b from-amber-soft/70 to-background">
         <div className="container-page flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-6 lg:py-8">
@@ -283,11 +269,9 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
       {/*
         The shop itself, and the reason the hero above is a band.
 
-        The home page used to reach its first product only after a full-height
-        hero and a category strip, and then only as horizontal rails — where
-        anything past the fourth tile is off-screen and has to be discovered by
-        swiping. A grid puts real stock in front of a customer immediately and
-        shows twenty of them at once.
+        A grid puts real stock in front of a customer immediately and shows
+        twenty of them at once; a horizontal rail hides anything past the
+        fourth tile until it is discovered by swiping.
 
         The rails below still earn their place: they are *cuts* of the same
         catalogue — cheapest, best discount, per category — which is a different
@@ -311,7 +295,7 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
             title="In the shop now"
             subtitle={
               data
-                ? `${data.shelf.length} of ${data.productCount} items in stock today`
+                ? `${data.shelf.length} items in stock today`
                 : 'Loading the shelves…'
             }
             href="/products"
@@ -338,8 +322,6 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
           promiseMinutes={promise}
         />
       ))}
-
-      <ComingSoon />
 
       {config && (
         <section className="py-12">
@@ -374,39 +356,6 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
         </section>
       )}
     </>
-  );
-}
-
-/**
- * A section's title row: heading, optional one-line subtitle, optional "View
- * all". Three copies of this markup had drifted by a class or two each; the
- * rails in `ProductCard.tsx` carry a fourth with an accent icon, which is why
- * this is local rather than shared.
- */
-function SectionHeading({
-  title,
-  subtitle,
-  href,
-}: {
-  title: string;
-  subtitle?: string;
-  href?: string;
-}) {
-  return (
-    <div className="mb-5 flex items-end justify-between gap-4">
-      <div>
-        <h2 className="text-2xl font-semibold sm:text-[28px]">{title}</h2>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-      </div>
-      {href && (
-        <Link
-          href={href}
-          className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          View all
-        </Link>
-      )}
-    </div>
   );
 }
 
@@ -455,7 +404,6 @@ function FeaturedCard({ category, priority }: { category: StoreCategory; priorit
     </Link>
   );
 }
-
 
 function CategoryImage({ category }: { category: StoreCategory }) {
   const image = assetUrl(category.image_url);

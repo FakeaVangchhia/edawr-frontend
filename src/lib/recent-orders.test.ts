@@ -15,7 +15,7 @@ import {
  * There is no account: possession of the tracking token is the whole
  * authorisation, and it is handed over exactly once. So the validation here is
  * not defensiveness for its own sake — an entry that survives a deploy with the
- * wrong shape used to reach the orders list and render "₹undefined".
+ * wrong shape would otherwise reach the orders list and render "₹undefined".
  */
 
 const STORAGE_KEY = 'edawr-recent-orders-v1';

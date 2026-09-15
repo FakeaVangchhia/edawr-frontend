@@ -35,6 +35,7 @@ import {
 } from '@/components/BasketSummary';
 import { ImageFallback } from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TextField } from '@/components/ui/TextField';
 import { useAddressBook, useCart, useProfile, useSession, useStoreConfig } from '@/hooks/useStoreData';
 import { signUp } from '@/lib/customer-api';
 import { PASSWORD_HINT, passwordProblem } from '@/lib/password';
@@ -110,6 +111,30 @@ function focusField(key: keyof FieldErrors): void {
  * back, so showing the local ten digits costs nothing and reads like a phone
  * number rather than like a database row.
  */
+/**
+ * The `unavailable` rows a 409 carries, checked field by field.
+ *
+ * The payload is whatever the server sent, and a cast would let a malformed
+ * row reach the cart's "unavailable" markers as `undefined`s. Anything that
+ * is not the documented shape is dropped rather than rendered.
+ */
+function parseUnavailable(rows: unknown): UnavailableItem[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.flatMap((row): UnavailableItem[] => {
+    if (typeof row !== 'object' || row === null) return [];
+    const item = row as Record<string, unknown>;
+    if (typeof item.product_id !== 'number' || typeof item.name !== 'string') return [];
+    return [
+      {
+        product_id: item.product_id,
+        name: item.name,
+        reason: typeof item.reason === 'string' ? item.reason : 'Not available right now.',
+        available: typeof item.available === 'number' ? item.available : 0,
+      },
+    ];
+  });
+}
+
 function localPhone(stored: string | undefined): string {
   if (!stored) return '';
   const digits = stored.replace(/\D/g, '');
@@ -187,7 +212,7 @@ export function CheckoutPage() {
     };
   }, []);
 
-  const { quote, isLoading, error } = useQuote(lines, deliveryType);
+  const { quote, isLoading, error } = useQuote(lines, deliveryType, hydrated);
 
   const outsideArea = isDeliverable(coords, config) === false;
   const distanceKm = distanceFromStore(coords, config);
@@ -199,7 +224,7 @@ export function CheckoutPage() {
 
   if (!hydrated) return <CheckoutSkeleton />;
 
-  if (lines.length === 0) {
+  if (lines.length === 0 && !isPlacing) {
     return (
       <div className="container-page py-20 text-center lg:py-28">
         <h1 className="text-2xl font-semibold">Nothing to check out</h1>
@@ -357,10 +382,10 @@ export function CheckoutPage() {
           ? `Arriving in about ${order.promised_minutes} minutes`
           : 'Save this page — this browser cannot remember your order.',
       });
-      // Navigate first, empty the basket second. The other order re-renders this
-      // page through the `lines.length === 0` branch above, so the customer sees
-      // "Nothing to check out" flash over a successful order while the router
-      // is still working.
+      // `isPlacing` stays true from here: emptying the basket would otherwise
+      // re-render this page through the `lines.length === 0` branch above, and
+      // the customer would see "Nothing to check out" flash over a successful
+      // order while the router was still working. That branch checks the flag.
       router.push(`/order/${order.tracking_token}`);
       clearCart();
     } catch (caught: unknown) {
@@ -370,8 +395,7 @@ export function CheckoutPage() {
       // was built. Naming the exact rows is the difference between a customer
       // fixing it in one tap and a customer giving up.
       if (caught instanceof ApiError && caught.isConflict) {
-        const rows = caught.payload.unavailable;
-        if (Array.isArray(rows)) setUnavailable(rows as UnavailableItem[]);
+        setUnavailable(parseUnavailable(caught.payload.unavailable));
         setFailure(caught.message);
       } else {
         setFailure(
@@ -381,7 +405,6 @@ export function CheckoutPage() {
       setIsPlacing(false);
     }
   };
-
 
   const blocked =
     unavailable.length > 0 ||
@@ -476,7 +499,7 @@ export function CheckoutPage() {
             )}
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field
+              <TextField
                 id="name"
                 label="Your name"
                 value={name}
@@ -488,7 +511,7 @@ export function CheckoutPage() {
                 error={errors.name}
                 autoComplete="name"
               />
-              <Field
+              <TextField
                 id="phone"
                 label="Mobile number"
                 value={phone}
@@ -504,7 +527,7 @@ export function CheckoutPage() {
             </div>
 
             <div className="mt-4">
-              <Field
+              <TextField
                 id="address"
                 label="Delivery address"
                 value={address}
@@ -560,7 +583,7 @@ export function CheckoutPage() {
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field
+              <TextField
                 id="landmark"
                 label="Landmark (optional)"
                 value={landmark}
@@ -568,7 +591,7 @@ export function CheckoutPage() {
                 placeholder="Near the church, opposite the bank"
                 onEnter={() => document.getElementById('notes')?.focus()}
               />
-              <Field
+              <TextField
                 id="notes"
                 label="Note for the rider (optional)"
                 value={notes}
@@ -599,7 +622,7 @@ export function CheckoutPage() {
 
                 {wantsAccount && (
                   <div className="mt-4">
-                    <Field
+                    <TextField
                       id="signupPassword"
                       label="Choose a password"
                       value={signupPassword}
@@ -781,96 +804,6 @@ export function CheckoutPage() {
           )}
         </button>
       </div>
-    </div>
-  );
-}
-
-/**
- * One labelled input.
- *
- * `id` is required rather than optional because three things depend on it: the
- * label's `for`, `aria-describedby` pointing at the error, and `focusField`,
- * which finds the input to jump to by id. It is also the `name`, so the browser
- * has something stable to hang a saved autofill entry on.
- *
- * The error is wired with `aria-describedby` and `role="alert"`. `aria-invalid`
- * alone — which is all this had — tells a screen reader *that* the field is
- * wrong and never *what* is wrong with it: the sentence explaining it was
- * sitting in a plain span the field did not point to.
- */
-function Field({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  error,
-  inputMode,
-  autoComplete,
-  type = 'text',
-  onEnter,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  error?: string;
-  inputMode?: 'tel' | 'text';
-  autoComplete?: string;
-  type?: 'text' | 'password';
-  /**
-   * What Enter does instead of submitting the form.
-   *
-   * Wrapping the page in a `<form>` gave every input implicit submission, which
-   * is right for the required fields — Enter after typing your address means
-   * "I am done". It is wrong for the two optional free-text boxes at the end:
-   * "Landmark" and "Note for the rider" are where Enter is a habitual keystroke
-   * rather than an instruction, and there it placed a cash order outright with
-   * nothing in between. These pass a handler that moves on instead.
-   */
-  onEnter?: () => void;
-}) {
-  const errorId = `${id}-error`;
-
-  return (
-    <div className="block">
-      <label
-        htmlFor={id}
-        className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        onKeyDown={
-          onEnter
-            ? (event) => {
-                if (event.key !== 'Enter') return;
-                event.preventDefault();
-                onEnter();
-              }
-            : undefined
-        }
-        className={cn(
-          'mt-2 h-12 w-full rounded-2xl border bg-surface px-4 text-sm outline-none transition-colors',
-          error ? 'border-destructive' : 'border-border focus:border-primary/25',
-        )}
-      />
-      {error && (
-        <span id={errorId} role="alert" className="mt-1.5 block text-xs text-destructive">
-          {error}
-        </span>
-      )}
     </div>
   );
 }

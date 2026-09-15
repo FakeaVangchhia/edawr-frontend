@@ -7,6 +7,7 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { usePromiseMinutes } from '@/hooks/useStoreData';
 import { cn } from '@/lib/utils';
 import type { StoreCategory, StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * The whole catalogue, filterable by category.
@@ -59,7 +60,7 @@ export function ProductsPage({ initialCategory }: { initialCategory?: string }) 
   useEffect(() => {
     const controller = new AbortController();
     fetchCategories(controller.signal)
-      .then(setCategories)
+      .then(unlessAborted(controller.signal, setCategories))
       .catch(() => {
         /* The filter chips are a convenience; the grid still loads. */
       });

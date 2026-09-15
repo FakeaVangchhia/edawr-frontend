@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import { slugify } from '@/lib/catalogue';
-import { rememberSearch } from '@/lib/recent-searches';
+import { clearRecentSearches, rememberSearch } from '@/lib/recent-searches';
 import { fetchCategories, fetchProducts } from '@/lib/store-api';
 import { ProductGrid } from '@/components/ProductGrid';
 import { usePromiseMinutes, useRecentSearches } from '@/hooks/useStoreData';
 import type { StoreCategory, StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * The full search results page.
@@ -42,7 +43,7 @@ export function SearchPage() {
   useEffect(() => {
     const controller = new AbortController();
     fetchCategories(controller.signal)
-      .then(setCategories)
+      .then(unlessAborted(controller.signal, setCategories))
       .catch(() => {
         /* Suggestions are a convenience. */
       });
@@ -53,10 +54,13 @@ export function SearchPage() {
     if (!query) return;
 
     const controller = new AbortController();
-    rememberSearch(query);
 
     fetchProducts({ q: query, limit: PAGE_SIZE }, controller.signal)
-      .then((products) => setResults({ query, products, error: '' }))
+      .then(
+        unlessAborted(controller.signal, (products) =>
+          setResults({ query, products, error: '' }),
+        ),
+      )
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         setResults({
@@ -75,6 +79,11 @@ export function SearchPage() {
   const submit = (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) return;
+    // Remembered here, at the act of searching, rather than in the effect that
+    // fetches: an effect that writes to a store this component also subscribes
+    // to costs a render per query, and a term is "recent" because somebody
+    // typed it, not because a URL was loaded.
+    rememberSearch(trimmed);
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
@@ -111,9 +120,20 @@ export function SearchPage() {
         <div className="mt-10 space-y-8">
           {recent.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Recent searches
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recent searches
+                </h2>
+                {/* A shop's phone is often a shared one; what was searched
+                    for on it should be the customer's to forget. */}
+                <button
+                  type="button"
+                  onClick={clearRecentSearches}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {recent.map((term) => (
                   <button

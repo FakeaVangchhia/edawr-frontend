@@ -15,7 +15,8 @@ import {
  * from the API. Built per request rather than at `next build`, because the
  * build runs without an API to ask (CI, a fresh deploy) and a sitemap frozen
  * at build time would list the catalogue as it was on release day. Google
- * fetches this a few times a day at most; two API calls is nothing.
+ * fetches this a few times a day at most; a few dozen catalogue pages is
+ * nothing.
  *
  * If the API is unreachable the static pages are still listed. A sitemap that
  * 500s is a sitemap Google stops trusting.

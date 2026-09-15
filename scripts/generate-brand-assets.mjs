@@ -3,7 +3,7 @@
  *
  *   node scripts/generate-brand-assets.mjs
  *
- * The master is `public/assets/edawr_profile_darknavy.png` — a 2720x2720 RGBA
+ * The master is `scripts/brand/edawr_profile_darknavy.png` — a 2720x2720 RGBA
  * badge: the wordmark "eDawr" on a navy disc, transparent outside the circle.
  * Nothing else in the tree is a logo. Before this script there were six
  * different marks pretending to be one (a lucide <Zap>, a second copy of it in
@@ -59,7 +59,10 @@ const ADMIN = path.join(ROOT, 'admin');
 const CUSTOMER_APP = path.join(ROOT, 'customer-app');
 const MOBILE = path.join(ROOT, 'mobile');
 
-const MASTER = path.join(FRONTEND, 'public/assets/edawr_profile_darknavy.png');
+// The masters live beside this script, not under public/: they are inputs,
+// and 770 KB of source art served from the CDN would be paid for on every
+// deploy and downloaded by nobody.
+const MASTER = path.join(HERE, 'brand/edawr_profile_darknavy.png');
 
 /**
  * The second master: the wordmark alone, no disc.
@@ -75,7 +78,7 @@ const MASTER = path.join(FRONTEND, 'public/assets/edawr_profile_darknavy.png');
  * Recolouring rather than redrawing keeps the letterforms and their anti-
  * aliasing exactly as the master has them; only the hue moves.
  */
-const WORDMARK = path.join(FRONTEND, 'public/assets/edawr_wordmark.png');
+const WORDMARK = path.join(HERE, 'brand/edawr_wordmark.png');
 
 /** Wide enough for a 2x header at any size the layout uses (h-8 → ~100px wide). */
 const WORDMARK_WIDTH = 720;
@@ -333,7 +336,6 @@ async function main() {
   await put(path.join(FRONTEND, 'public/icon-192.png'), badgeOnNavy(192));
   await put(path.join(FRONTEND, 'public/icon-512.png'), badgeOnNavy(512));
   await put(path.join(FRONTEND, 'public/icon-maskable-512.png'), await badgeMaskableOnNavy(512));
-  await put(path.join(FRONTEND, 'public/assets/edawr-mark-512.png'), markPng(512));
   // The header lockup and its navy-ground twin. See WORDMARK above.
   await put(path.join(FRONTEND, 'public/assets/edawr-wordmark-dark.png'), await wordmarkDark());
   await put(path.join(FRONTEND, 'public/assets/edawr-wordmark-light.png'), wordmarkLight());

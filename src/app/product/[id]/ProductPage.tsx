@@ -17,6 +17,7 @@ import { AddControl, ImageFallback, ProductRail } from '@/components/ProductCard
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePromiseMinutes, useStoreConfig } from '@/hooks/useStoreData';
 import type { StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * One product.
@@ -57,7 +58,7 @@ export function ProductPage({ id }: { id: number }) {
           error: '',
         };
       })
-      .then(setState)
+      .then(unlessAborted(controller.signal, setState))
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         // A 404 here means "no such product", which is a page state rather than
@@ -107,7 +108,9 @@ export function ProductPage({ id }: { id: number }) {
 
   const { product, related } = state;
   const image = assetUrl(product.image_url);
-  const saving = product.mrp > product.price ? product.mrp - product.price : 0;
+  // From the server, like every other figure: subtracting two floats here
+  // would be a second pricing engine, and 62.5 - 59.9 is not 2.6 in binary.
+  const saving = product.saving;
 
   return (
     <>

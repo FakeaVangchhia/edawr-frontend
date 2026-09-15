@@ -43,7 +43,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://ed
  * than any healthy answer and shorter than a customer's patience; on a miss
  * the page renders with the static metadata, which is still correct.
  */
-export const SEO_FETCH_BUDGET_MS = 3_000;
+const SEO_FETCH_BUDGET_MS = 3_000;
 
 /** A fresh abort signal for one metadata fetch. */
 export const seoSignal = () => AbortSignal.timeout(SEO_FETCH_BUDGET_MS);

@@ -3,11 +3,9 @@
  *
  * Written for the orders page, which fans out one tracking request per
  * remembered order. `Promise.all` over that list opens up to ten simultaneous
- * connections to the API on every mount — against a Cloud Run service scaled to
- * zero, the first of those pays the cold start and the other nine queue behind
- * it anyway, so the parallelism buys nothing and the burst is what a rate limit
- * is for. Three at a time finishes at very nearly the same moment and looks like
- * a browser rather than like a script.
+ * connections to the API on every mount; the burst is what a rate limit is
+ * for, and three at a time finishes at very nearly the same moment and looks
+ * like a browser rather than like a script.
  *
  * Results come back in input order regardless of completion order, because the
  * caller is zipping them against the list it passed in.
@@ -37,4 +35,24 @@ export async function mapWithLimit<T, R>(
   );
 
   return results;
+}
+
+/**
+ * A `.then` handler that does nothing once the effect that made the request
+ * has been cleaned up.
+ *
+ * Aborting a controller rejects a request that is still in flight; it does
+ * not stop one that has *already resolved* from running its `.then`. A query
+ * typed over, or a page navigated away from, would otherwise write a stale
+ * response into state — under the wrong heading, or after unmount. Every
+ * fetch effect in the storefront wraps its success path in this.
+ */
+export function unlessAborted<T>(
+  signal: AbortSignal,
+  handler: (value: T) => void,
+): (value: T) => void {
+  return (value) => {
+    if (signal.aborted) return;
+    handler(value);
+  };
 }

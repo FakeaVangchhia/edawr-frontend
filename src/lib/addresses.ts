@@ -1,15 +1,14 @@
 /**
  * The customer's address book, on this device only.
  *
- * There are no customer accounts in this system — `api/urls.py` has no customer
- * auth, and checkout takes `customer_address` as free text. So an address book
- * cannot be a server record; it is a convenience that stops someone retyping
- * where they live on every order.
+ * An account, when there is one, carries no addresses — checkout takes
+ * `customer_address` as free text and the API stores nothing else. So the
+ * address book is a device convenience that stops someone retyping where they
+ * live on every order, signed in or not.
  *
  * The consequence is worth stating plainly: **clearing site data loses these**,
- * and they do not follow the customer to another device. That is the honest
- * cost of a store with no sign-in, and it is why nothing here is presented as
- * an account.
+ * and they do not follow the customer to another device. That is why nothing
+ * here is presented as part of the account.
  *
  * What the server receives is still just a string. `toDeliveryAddress` is what
  * flattens a saved entry into it, and it is the only place that formatting
@@ -98,14 +97,6 @@ export function addAddress(input: Omit<SavedAddress, 'id'>): SavedAddress {
   const entry: SavedAddress = { ...input, id: newId() };
   store.write({ entries: [...book.entries, entry], selectedId: entry.id });
   return entry;
-}
-
-export function updateAddress(id: string, patch: Partial<Omit<SavedAddress, 'id'>>): void {
-  const book = store.read();
-  store.write({
-    ...book,
-    entries: book.entries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
-  });
 }
 
 export function removeAddress(id: string): void {

@@ -58,14 +58,12 @@
   --color-rose-foreground: var(--rose-foreground);
   --color-rose-soft: var(--rose-soft);
   --color-border: var(--border);
-  --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
   --color-ring-offset-background: var(--background);
 
   --shadow-card: 0 1px 2px oklch(0.14 0.04 264 / 0.04), 0 8px 24px oklch(0.14 0.04 264 / 0.05);
   --shadow-lift: 0 2px 6px oklch(0.14 0.04 264 / 0.06), 0 20px 44px oklch(0.14 0.04 264 / 0.1);
-  --shadow-amber: 0 8px 24px oklch(0.78 0.15 68 / 0.32);
 
   --ease-apple: cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -76,11 +74,11 @@
   /*
     The exact height of the mobile tab bar, including the home-indicator inset.
 
-    Cart and checkout each pin a sticky action bar directly above it, and both
-    used to hardcode `bottom-[68px]` — the bar's height on a phone with no
-    safe-area inset. On every iPhone with a home indicator the inset is about
-    34px more than that, so the primary action on the two screens that matter
-    most sat *behind* the tab bar and was partly untappable.
+    Cart and checkout each pin a sticky action bar directly above it. A
+    hardcoded `bottom-[68px]` — the bar's height on a phone with no safe-area
+    inset — is about 34px short on every iPhone with a home indicator, and puts
+    the primary action on the two screens that matter most *behind* the tab
+    bar, partly untappable.
 
     `AppShell`'s nav enforces this rather than merely matching it: the row is
     `h-14` and the inset is its padding-bottom, so the two numbers below are the
@@ -132,7 +130,6 @@
   --rose-soft: oklch(0.965 0.025 22);
 
   --border: oklch(0.925 0.005 264);
-  --input: oklch(0.925 0.005 264);
   --ring: oklch(0.783 0.152 68.5);
 }
 

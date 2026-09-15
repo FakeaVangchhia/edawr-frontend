@@ -43,7 +43,7 @@ import { readSession, saveSession } from '@/lib/session';
  * The header and footer lockup: the wordmark, and nothing beside it.
  *
  * `edawr-wordmark-dark.png` is the real logo — the amber "e" and "Dawr" from
- * `public/assets/edawr_wordmark.png`, with the white letters repainted navy by
+ * `scripts/brand/edawr_wordmark.png`, with the white letters repainted navy by
  * `scripts/generate-brand-assets.mjs` so they survive a white header. The
  * light-ground twin, `edawr-wordmark-light.png`, is for the navy band on the
  * home page. Both come from that script; do not hand-edit either.
@@ -79,8 +79,8 @@ function Logo() {
 /**
  * "Deliver to …".
  *
- * The address book is local to this device — there are no customer accounts —
- * so before anything is saved this reads as an invitation to add one rather
+ * The address book is local to this device — accounts do not carry one — so
+ * before anything is saved this reads as an invitation to add one rather
  * than as a fake default. Inventing "Home · Aizawl" for someone who has never
  * typed an address is the kind of placeholder that survives into production and
  * gets an order sent to a street nobody named.
@@ -187,6 +187,10 @@ function CartButton() {
 
 // `Account` is not here: it needs its own state, so it renders through
 // `AccountLink` below — the same reason `CartButton` is not a plain nav entry.
+// Read once at module load rather than in render, so the server and the
+// client agree on the footer even across a midnight that lands mid-request.
+const COPYRIGHT_YEAR = new Date().getFullYear();
+
 const NAV_LINKS: Array<[label: string, href: string]> = [
   ['Shop', '/products'],
   ['Orders', '/orders'],
@@ -388,7 +392,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="container-page border-t py-6 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} {config?.store_name ?? 'eDawr'}. All rights reserved.
+          © {COPYRIGHT_YEAR} {config?.store_name ?? 'eDawr'}. All rights reserved.
         </div>
       </footer>
 
@@ -421,12 +425,12 @@ function FooterCol({ title, links }: { title: string; links: Array<[string, stri
 /**
  * The mobile tab bar: four destinations, and nothing that is already on screen.
  *
- * It used to carry six — these four plus Search and Cart. Both of those are in
- * the header, which is `sticky top-0` and therefore visible on the same screen
- * at the same time: the search field is the widest thing in it, and the cart
- * button with its badge sits at the end of the same row. So a phone showed two
- * ways to search and two ways to reach the basket, permanently, four pixels of
- * chrome apart.
+ * No Search and no Cart tab, because both are in the header, which is
+ * `sticky top-0` and therefore visible on the same screen at the same time:
+ * the search field is the widest thing in it, and the cart button with its
+ * badge sits at the end of the same row. Tabs for them would show two ways to
+ * search and two ways to reach the basket, permanently, four pixels of chrome
+ * apart.
  *
  * Six is also past the point where a bar reads as a set of places. The
  * convention across iOS and Android tops out at five, and these six were not
@@ -454,7 +458,6 @@ const TABS: Array<{ key: TabKey; href: string; label: string; icon: typeof Home 
 ];
 
 function MobileNav({ pathname }: { pathname: string }) {
-
   return (
     <nav
       aria-label="Main"

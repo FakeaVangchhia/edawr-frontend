@@ -1,3 +1,4 @@
+import { readStorage } from '@/lib/local-store';
 import type { CartLine, StoreProduct } from '@/types';
 
 /**
@@ -89,7 +90,7 @@ function commit(lines: CartLine[], { persist = true } = {}) {
 function hydrate() {
   if (hydrated || typeof window === 'undefined') return;
   hydrated = true;
-  commit(parse(window.localStorage.getItem(STORAGE_KEY)), { persist: false });
+  commit(parse(readStorage(STORAGE_KEY)), { persist: false });
 }
 
 function onStorage(event: StorageEvent) {

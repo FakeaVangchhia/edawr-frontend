@@ -12,7 +12,6 @@ import Link from 'next/link';
 import { Clock, Search, TrendingUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { assetUrl } from '@/lib/api';
-import { ApiError } from '@/lib/api';
 import { slugify } from '@/lib/catalogue';
 import { formatMoney } from '@/lib/format';
 import { rememberSearch } from '@/lib/recent-searches';
@@ -21,6 +20,7 @@ import { useRecentSearches } from '@/hooks/useStoreData';
 import { AddControl, ImageFallback } from '@/components/ProductCard';
 import { cn } from '@/lib/utils';
 import type { StoreCategory, StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * The ⌘K search overlay.
@@ -75,7 +75,7 @@ export function SearchOverlay({
     if (!open) return;
     const controller = new AbortController();
     fetchCategories(controller.signal)
-      .then(setCategories)
+      .then(unlessAborted(controller.signal, setCategories))
       .catch(() => {
         /* The rail is a shortcut; search still works without it. */
       });
@@ -88,16 +88,17 @@ export function SearchOverlay({
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetchProducts({ q: term, limit: 8 }, controller.signal)
-        .then((products) => setResults({ query: term, products, error: '' }))
+        .then(
+          unlessAborted(controller.signal, (products) =>
+            setResults({ query: term, products, error: '' }),
+          ),
+        )
         .catch((caught: unknown) => {
           if (controller.signal.aborted) return;
           setResults({
             query: term,
             products: [],
-            error:
-              caught instanceof ApiError || caught instanceof Error
-                ? caught.message
-                : 'Search is unavailable right now.',
+            error: caught instanceof Error ? caught.message : 'Search is unavailable right now.',
           });
         });
     }, DEBOUNCE_MS);
@@ -112,10 +113,10 @@ export function SearchOverlay({
   // different query than the one currently typed.
   //
   // **Stale results stay on screen rather than being replaced by nothing.**
-  // This used to render only an exact match for the current term, so every
-  // keystroke emptied the list and put "Searching…" in its place — at a 250ms
-  // debounce plus a round trip, typing "milk" flashed the panel blank four
-  // times. Holding the previous rows at reduced opacity means the list settles
+  // Rendering only an exact match for the current term would empty the list
+  // on every keystroke and put "Searching…" in its place — at a 250ms debounce
+  // plus a round trip, typing "milk" would flash the panel blank four times.
+  // Holding the previous rows at reduced opacity means the list settles
   // instead of strobing, and the results a customer is already reading do not
   // vanish underneath them while they read.
   //

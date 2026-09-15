@@ -10,13 +10,13 @@ import { isLive, isStopped } from '@/lib/order-status';
 import { buildReorder } from '@/lib/reorder';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecentOrders, useSession } from '@/hooks/useStoreData';
-import { cn } from '@/lib/utils';
-import type { TrackedOrder } from '@/types';
 import { ApiError } from '@/lib/api';
 import { mapWithLimit } from '@/lib/concurrency';
-import { trackOrder } from '@/lib/store-api';
 import { fetchMyOrders } from '@/lib/customer-api';
 import { mergeOrderHistory } from '@/lib/order-history';
+import { trackOrder } from '@/lib/store-api';
+import { cn } from '@/lib/utils';
+import type { TrackedOrder } from '@/types';
 
 /**
  * The customer's order history.
@@ -35,11 +35,10 @@ import { mergeOrderHistory } from '@/lib/order-history';
  * Orders whose tokens 404 are dropped by `OrderTracker` when they are opened;
  * here they render as gone rather than vanishing mid-list.
  *
- * **"Gone" and "we cannot reach the store" are shown differently**, and they
- * used to be the same word. Both took the same `.catch(() => null)` branch and
- * both rendered "Unavailable", so a backend outage looked exactly like ten
- * deleted orders — the single most alarming thing this page could tell a
- * customer, and in that case it was not even true.
+ * **"Gone" and "we cannot reach the store" are shown differently.** One
+ * `.catch(() => null)` for both would render a backend outage exactly like
+ * ten deleted orders — the single most alarming thing this page could tell a
+ * customer, and in that case not even true.
  */
 
 /** What we know about one remembered token after trying to fetch it. */
@@ -190,8 +189,9 @@ export function OrdersPage() {
     <div className="container-page py-10 lg:py-16">
       <h1 className="text-3xl font-semibold lg:text-5xl">Your orders</h1>
       <p className="mt-3 max-w-xl text-muted-foreground">
-        Saved on this device. Tracking is authorised by the link itself, so anyone with it can see
-        the order.
+        {session
+          ? 'Orders placed on this account, plus any this device remembers from before you signed in.'
+          : 'Saved on this device. Tracking is authorised by the link itself, so anyone with it can see the order.'}
       </p>
 
       <ul className="mt-10 space-y-4">

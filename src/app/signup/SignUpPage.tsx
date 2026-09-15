@@ -23,7 +23,8 @@ import { saveProfile } from '@/lib/profile';
 import { safeNext } from '@/lib/redirect';
 import { saveSession } from '@/lib/session';
 import { isValidIndianMobile, isValidName } from '@/lib/validation';
-import { AuthError, AuthField, AuthShell, AuthSwitchLink } from '@/components/auth/AuthShell';
+import { AuthError, AuthShell, AuthSwitchLink } from '@/components/auth/AuthShell';
+import { TextField } from '@/components/ui/TextField';
 
 export function SignUpPage() {
   const router = useRouter();
@@ -87,7 +88,8 @@ export function SignUpPage() {
     >
       <form onSubmit={submit} noValidate>
         <div className="space-y-4">
-          <AuthField
+          <TextField
+            surface="background"
             id="name"
             label="Your name"
             value={name}
@@ -97,7 +99,8 @@ export function SignUpPage() {
             error={errors.name}
             disabled={submitting}
           />
-          <AuthField
+          <TextField
+            surface="background"
             id="phone"
             label="Mobile number"
             value={phone}
@@ -110,7 +113,8 @@ export function SignUpPage() {
             error={errors.phone}
             disabled={submitting}
           />
-          <AuthField
+          <TextField
+            surface="background"
             id="password"
             label="Password"
             value={password}
