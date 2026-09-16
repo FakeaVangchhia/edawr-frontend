@@ -49,7 +49,15 @@ export interface StorePromo {
   subtitle: string | null;
   /** Relative `/uploads/<name>` path, or null for a banner that is title on navy. */
   image_url: string | null;
-  /** A path on this site, or null for the full catalogue. The API refuses a URL. */
+  /**
+   * A path on this site, or one of the external destinations the API allows —
+   * `https://`/`http://`, `tel:`, `mailto:`. Null means the full catalogue.
+   * `lib/promo-link.ts` is what turns it into a destination and a button label.
+   *
+   * (This used to say the API refuses a URL. It did once; the allowlist in
+   * `PromoSerializer.validate_link` replaced that, because a banner may
+   * advertise something that is not a page of the shop.)
+   */
   link: string | null;
 }
 

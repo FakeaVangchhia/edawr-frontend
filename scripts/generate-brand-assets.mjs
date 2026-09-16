@@ -363,6 +363,14 @@ async function main() {
     await put(path.join(app, 'assets/mark.png'), markPng(512));
   }
 
+  // The customer app's header and its navy card use the wordmark, exactly as
+  // the storefront's do — it is a port of the storefront, and the lockup is
+  // part of what it is porting. The rider app is not: its header is a name and
+  // a shift, seen only by staff, and it has no navy card to put the light twin
+  // on. Adding it there would be two files nothing renders.
+  await put(path.join(CUSTOMER_APP, 'assets/edawr-wordmark-dark.png'), await wordmarkDark());
+  await put(path.join(CUSTOMER_APP, 'assets/edawr-wordmark-light.png'), wordmarkLight());
+
   const width = Math.max(...written.map(([name]) => name.length));
   for (const [name, size] of written) {
     console.log(`  ${name.padEnd(width)}  ${size ? `${size.toLocaleString()} B` : ''}`);
