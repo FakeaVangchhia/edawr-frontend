@@ -1,4 +1,9 @@
-@AGENTS.md
+# Next.js 16
+
+This is not the Next.js you may know. Consult
+`node_modules/next/dist/docs/` before writing framework code: middleware is
+`src/proxy.ts`, `params` and `searchParams` are Promises, Turbopack is the
+default, and `await connection()` in the root layout is load-bearing.
 
 # Git
 

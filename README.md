@@ -3,7 +3,7 @@
 The customer-facing shop: Next.js 16 (App Router, React 19, Tailwind v4).
 
 **This package serves no API routes.** Every figure, product and order comes
-from the Django backend in `backend/`. Point `NEXT_PUBLIC_API_URL` at it before
+from the Django API in `edawr-backend/`. Point `NEXT_PUBLIC_API_URL` at it before
 anything will load.
 
 ```bash
@@ -18,6 +18,7 @@ npm run dev               # http://localhost:3000
 | `npm run build` | Production build — catches missing `'use client'` and unawaited `params` |
 | `npm run lint` | ESLint, including `react-hooks/set-state-in-effect` |
 | `npm test` | Vitest, pure logic only |
+| `npm run brand-assets` | Regenerate every icon and wordmark from the masters in `scripts/brand/` |
 
 ## Routes
 
@@ -31,21 +32,23 @@ npm run dev               # http://localhost:3000
 | `/search` | Results from `/api/store/products?q=`, plus the ⌘K overlay |
 | `/cart` | The basket, priced by `/api/store/quote` |
 | `/checkout` | Details, delivery speed, and `POST /api/store/orders` |
-| `/orders` | Orders this browser remembers, with live status |
+| `/orders` | The account's orders, plus any this browser remembers, with live status |
 | `/order/[token]` | Live tracking, polled every 10s |
-| `/account`, `/addresses` | Name, number and address book — **local to the browser** |
+| `/signin`, `/signup` | Optional customer accounts: phone and password |
+| `/account` | The account (name, password, sign out) and the device's remembered details |
+| `/addresses` | The address book — **local to the browser** |
 | `/offers` | Real delivery thresholds and genuinely discounted stock |
 
 The staff console is a **separate application in its own repository**
 (`edawr-admin`, checked out alongside this directory at `admin/`), on port 3001.
-Nothing in this package is authenticated: every endpoint the storefront touches
-is public, because a customer has no account.
+Everything a guest touches is public; the `/api/customer/*` and
+`/api/auth/customer/*` routes take the optional account's bearer token, and
+nothing else does (`lib/api.ts` explains why `request()` never attaches one).
 
-> **This package is not under version control.** `frontend/` has no `.git`, and
-> neither does the directory above it. There is nothing to revert an edit to and
-> no history to read. The last committed state is archived at
-> `F:\Projects\eDawr-history.bundle` — a one-time snapshot, not a backup that
-> updates. Keep a copy elsewhere before a substantial change.
+This package is the `edawr-frontend` repository. The customer app in
+`../customer-app` is a port of it, route for route: **a change to
+customer-facing behaviour belongs in both**, and its README lists the few
+places the two are allowed to differ.
 
 ## The three rules this package is built around
 
@@ -56,11 +59,14 @@ checkout request carries product ids and quantities only — no price, no fee, n
 total. Adding up line totals in TypeScript would be a second pricing engine, and
 it would disagree with the server the first time a fee changed.
 
-**No customer accounts exist.** There is no customer auth in the API. `/account`
-and `/addresses` are localStorage conveniences that prefill checkout, and order
-history is the set of tracking tokens saved at checkout (`lib/recent-orders.ts`).
+**An account is optional, and guest checkout is the main path.** A customer
+may sign up with a phone number and a password; nothing requires it. The
+address book and the remembered name and number are localStorage
+conveniences that prefill checkout for everyone, and a guest's order history
+is the set of tracking tokens saved at checkout (`lib/recent-orders.ts`).
 Possession of a token is the credential — the same trust model as a paper
-receipt. Clearing site data is destructive.
+receipt — and a signed-in customer additionally sees the orders placed on the
+account. Clearing site data loses the local half.
 
 **Never set state synchronously inside an effect.** `react-hooks/set-state-in-effect`
 is an error here, and the fix is structural rather than a suppression: tag
@@ -69,8 +75,8 @@ fetched data with the query that produced it and *derive* the loading flag.
 
 ## Framework notes
 
-This is not the Next.js you may know — see `AGENTS.md`, and read
-`node_modules/next/dist/docs/` before writing framework code.
+This is not the Next.js you may know — read `node_modules/next/dist/docs/`
+before writing framework code.
 
 - **Middleware is called Proxy.** `src/proxy.ts` carries the CSP with a
   per-request nonce. It derives `connect-src` and `img-src` from

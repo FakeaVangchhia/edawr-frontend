@@ -13,7 +13,7 @@
  * disappear at the moment someone signs in — the exact opposite of what an
  * account is for.
  *
- * Extracted as a pure function because `frontend/` has no Testing Library and
+ * Extracted as a pure function because this package has no Testing Library and
  * cannot render `OrdersPage` in a test. Logic left inside the component is
  * logic with no coverage.
  */
@@ -79,16 +79,4 @@ export function mergeOrderHistory(
     if (byTime !== 0 && !Number.isNaN(byTime)) return byTime;
     return b.orderId - a.orderId;
   });
-}
-
-/**
- * The tokens that still need fetching one at a time.
- *
- * Everything the server already returned is complete, so only local-only rows
- * go through the per-token tracking requests. For a signed-in customer whose
- * history is entirely on the server, this is empty and the page makes exactly
- * one request.
- */
-export function tokensNeedingFetch(entries: HistoryEntry[]): string[] {
-  return entries.filter((entry) => entry.order === null).map((entry) => entry.token);
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, NetworkError, request } from '@/lib/api';
+import { ApiError, NetworkError, authRequest, request, setSessionExpiredHandler } from '@/lib/api';
+import { readSession, saveSession } from '@/lib/session';
 
 /**
  * The fetch wrapper, which had no test and is on the path of every screen.
@@ -189,6 +190,40 @@ describe('request', () => {
     await settle(request('/api/x'));
     const without = fetchMock.mock.calls[0][1] as RequestInit;
     expect(new Headers(without.headers).get('Content-Type')).toBeNull();
+  });
+
+  describe('the 401 interceptor', () => {
+    const session = { accessToken: 'tok', id: 1, phone: '+919000000000', name: '', phoneVerified: false };
+
+    it('ends the session when a request that sent the token is refused', async () => {
+      saveSession(session);
+      const expired = vi.fn();
+      setSessionExpiredHandler(expired);
+      fetchMock.mockImplementation(failure(401, 'Your session has expired.'));
+
+      await expect(settle(authRequest('/api/customer/orders'))).rejects.toBeInstanceOf(ApiError);
+
+      expect(readSession()).toBeNull();
+      expect(expired).toHaveBeenCalledOnce();
+      setSessionExpiredHandler(undefined);
+    });
+
+    it('leaves the session alone when the sign-in form is refused', async () => {
+      // A wrong password is a 401 with no token attached. There is nothing to
+      // retire, and "You have been signed out" over a typo would be a lie.
+      saveSession(session);
+      const expired = vi.fn();
+      setSessionExpiredHandler(expired);
+      fetchMock.mockImplementation(failure(401, 'Incorrect phone or password.'));
+
+      await expect(
+        settle(request('/api/auth/customer/login', { method: 'POST', body: {} })),
+      ).rejects.toBeInstanceOf(ApiError);
+
+      expect(readSession()).not.toBeNull();
+      expect(expired).not.toHaveBeenCalled();
+      setSessionExpiredHandler(undefined);
+    });
   });
 
   it('passes a caller header through, which is how checkout sends its key', async () => {

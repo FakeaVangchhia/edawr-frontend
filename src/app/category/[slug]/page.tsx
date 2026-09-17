@@ -8,7 +8,7 @@ import { fetchCategories } from '@/lib/store-api';
 /**
  * `params` is a Promise in this version of Next.js and must be awaited — both
  * here and in `generateMetadata`. This is one of the framework's breaking
- * changes; see `frontend/AGENTS.md`.
+ * changes; see `node_modules/next/dist/docs/`.
  */
 
 /**

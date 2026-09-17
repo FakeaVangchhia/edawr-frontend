@@ -37,7 +37,8 @@ import type { DeliveryType, StoreConfig } from '@/types';
  *
  * `useStoreConfig` is the odd one out: it fetches. Note that it never calls
  * `setState` in the body of an effect — only inside a promise callback, which
- * is an async path. Setting state synchronously in an effect is an error in
+ * is an async path; the cached value is adopted through `useState`'s
+ * initialiser instead. Setting state synchronously in an effect is an error in
  * this codebase (`react-hooks/set-state-in-effect`), and the fix is structural
  * rather than a suppression.
  */
@@ -98,17 +99,15 @@ export function useRecentSearches() {
  * Cached at module scope so the twelve components that want the delivery
  * promise share one request rather than each firing their own.
  *
- * **The cache has a lifetime, and that is new.** It used to be permanent, on
- * the reasoning that this is configuration rather than inventory and a stale
- * fee costs nothing because no fee here is ever charged — every figure that
- * bills the customer comes from `/api/store/quote`. That reasoning was sound
- * while the payload was only prices. It stopped being sound when `is_open` and
- * `closed_reason` joined it: those are live operational state, and a permanent
- * cache means a customer who loaded the page at 21:55 still sees "Checkout" at
- * 22:05, fills in the whole address form, and is refused with a 503 at the last
- * step — the exact failure the closed-store gate exists to prevent. It fails the
- * other way too: a tab opened while the shop was shut says "Store closed"
- * forever after it reopens.
+ * **The cache has a lifetime.** A permanent one would be defensible if the
+ * payload were only prices — a stale fee costs nothing, because no fee here is
+ * ever charged; every figure that bills the customer comes from
+ * `/api/store/quote`. But `is_open` and `closed_reason` are live operational
+ * state, and a permanent cache means a customer who loaded the page at 21:55
+ * still sees "Checkout" at 22:05, fills in the whole address form, and is
+ * refused with a 503 at the last step — the exact failure the closed-store
+ * gate exists to prevent. It fails the other way too: a tab opened while the
+ * shop was shut would say "Store closed" forever after it reopens.
  *
  * Sixty seconds is chosen against what it is protecting: closing time and a
  * manager's kill switch during a power cut. A minute of staleness on either is
@@ -142,22 +141,20 @@ function loadConfig(signal?: AbortSignal): Promise<StoreConfig> {
 }
 
 export function useStoreConfig(): StoreConfig | null {
+  // Seeded from the module cache, so a component mounting inside the TTL
+  // window renders the known value on its first paint and nothing has to be
+  // set synchronously inside the effect below.
   const [config, setConfig] = useState<StoreConfig | null>(cached);
-  // Bumped by the interval below. It is a render trigger, not state that
-  // anything reads — the value always comes from the module cache.
-  const [, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    const refresh = (): Promise<void> => {
-      if (isFresh()) {
-        // Still adopt it: a component mounting inside the window needs the
-        // cached value even though no request is due.
-        if (!cancelled && cached) setConfig(cached);
-        return Promise.resolve();
-      }
-      return loadConfig()
+    // A fresh cache is adopted through the same promise path as a fetch, so
+    // a component whose render preceded another component's response by a
+    // tick still picks the value up — and React skips the re-render when it
+    // is the reference this component already has.
+    const refresh = (): Promise<void> =>
+      (isFresh() && cached ? Promise.resolve(cached) : loadConfig())
         .then((loaded) => {
           if (!cancelled) setConfig(loaded);
         })
@@ -168,7 +165,6 @@ export function useStoreConfig(): StoreConfig | null {
           // known* value is kept rather than cleared: a network blip must not
           // black out the storefront's delivery promise.
         });
-    };
 
     // Re-checked on a timer rather than only on mount, because the pages that
     // care — the cart and checkout — are exactly the ones a customer sits on
@@ -188,7 +184,6 @@ export function useStoreConfig(): StoreConfig | null {
       if (cancelled) return;
       timer = setTimeout(() => {
         if (cancelled) return;
-        setTick((n) => n + 1);
         // `finally`, so a failed attempt reschedules too — anchoring on the
         // attempt rather than on `cachedAt` is also what keeps a run of
         // failures from spinning: each retry is a full TTL after the last.

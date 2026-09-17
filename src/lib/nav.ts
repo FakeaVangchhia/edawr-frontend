@@ -2,15 +2,15 @@
  * Which routes each mobile tab stands for.
  *
  * This lives in `lib/` rather than inside `AppShell` because it is pure route
- * logic and because it was silently wrong for a long time with nothing to catch
- * it. Highlighting used to be `pathname.startsWith(tab.href)`, and this app's
- * routes are singular where its tabs are plural: the category page is
+ * logic that is easy to get silently wrong. `pathname.startsWith(tab.href)`
+ * is the obvious rule and the wrong one, because this app's routes are
+ * singular where its tabs are plural: the category page is
  * `/category/[slug]` behind a `/categories` tab, and the tracker is
  * `/order/[token]` behind `/orders`. Neither
  * `'/category/dairy'.startsWith('/categories')` nor
  * `'/order/abc'.startsWith('/orders')` is true, so the two journeys customers
- * make most — browsing a category, watching an order arrive — both drew a tab bar
- * with nothing selected at all.
+ * make most — browsing a category, watching an order arrive — would both draw
+ * a tab bar with nothing selected at all.
  *
  * A component holding that rule could only be checked by rendering it, and this
  * package has no `@testing-library/react`. As a plain function it is covered by

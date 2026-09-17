@@ -16,6 +16,8 @@
  * state synchronously inside one, which is an error in this codebase.
  */
 
+import { readStorage } from '@/lib/local-store';
+
 const STORAGE_KEY = 'edawr-recent-orders-v1';
 const MAX_REMEMBERED = 10;
 
@@ -110,7 +112,7 @@ export function readRecentOrders(): RememberedOrder[] {
   if (typeof window === 'undefined') return NONE;
   if (!hydrated) {
     hydrated = true;
-    snapshot = parse(window.localStorage.getItem(STORAGE_KEY));
+    snapshot = parse(readStorage(STORAGE_KEY));
   }
   return snapshot;
 }

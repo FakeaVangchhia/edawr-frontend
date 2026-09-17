@@ -15,6 +15,7 @@ import { ImageFallback } from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStoreConfig } from '@/hooks/useStoreData';
 import type { StoreCategory } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * Every category in the store.
@@ -31,7 +32,7 @@ export function CategoriesPage() {
   useEffect(() => {
     const controller = new AbortController();
     fetchCategories(controller.signal)
-      .then(setCategories)
+      .then(unlessAborted(controller.signal, setCategories))
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         setError(caught instanceof Error ? caught.message : 'Could not load the categories.');

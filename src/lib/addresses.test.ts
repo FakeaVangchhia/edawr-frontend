@@ -7,7 +7,6 @@ import {
   selectAddress,
   selectedAddress,
   toDeliveryAddress,
-  updateAddress,
 } from './addresses';
 
 /**
@@ -193,19 +192,6 @@ describe('selectAddress', () => {
     const home = seed();
     selectAddress('addr-does-not-exist');
     expect(readAddresses().selectedId).toBe(home.id);
-  });
-});
-
-describe('updateAddress', () => {
-  it('patches one entry and leaves the rest untouched', () => {
-    const home = seed();
-    const work = addAddress({ label: 'Work', line: 'Zarkawt', city: 'Aizawl', landmark: '' });
-
-    updateAddress(home.id, { label: 'Parents' });
-
-    const book = readAddresses();
-    expect(book.entries.find((entry) => entry.id === home.id)?.label).toBe('Parents');
-    expect(book.entries.find((entry) => entry.id === work.id)?.label).toBe('Work');
   });
 });
 

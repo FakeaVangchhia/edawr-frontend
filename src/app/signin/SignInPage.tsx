@@ -5,8 +5,9 @@
  *
  * There is no password reset, and the page says so rather than offering a
  * "forgot password?" link that goes nowhere. Recovering an account needs a
- * second channel to send a code down, and this store has none yet — see
- * PRODUCTION.md Part 4. Someone locked out has to ask at the counter.
+ * second channel to send a code down, and this store has none yet (an SMS
+ * provider, and DLT registration — see the API's Known gaps). Someone locked
+ * out has to ask at the counter.
  */
 
 import { useState } from 'react';
@@ -18,7 +19,8 @@ import { saveProfile } from '@/lib/profile';
 import { safeNext } from '@/lib/redirect';
 import { saveSession } from '@/lib/session';
 import { isValidIndianMobile } from '@/lib/validation';
-import { AuthError, AuthField, AuthShell, AuthSwitchLink } from '@/components/auth/AuthShell';
+import { AuthError, AuthShell, AuthSwitchLink } from '@/components/auth/AuthShell';
+import { TextField } from '@/components/ui/TextField';
 
 export function SignInPage() {
   const router = useRouter();
@@ -51,9 +53,9 @@ export function SignInPage() {
       toast.success('Signed in');
       router.push(next);
     } catch (error) {
-      if (error instanceof NetworkError) {
-        setFailure(error.message);
-      } else if (error instanceof ApiError) {
+      // Both carry a sentence written for the customer: the server's own
+      // `detail`, or the network layer's "could not reach the store".
+      if (error instanceof ApiError || error instanceof NetworkError) {
         setFailure(error.message);
       } else {
         setFailure('Could not sign you in. Try again in a moment.');
@@ -77,7 +79,8 @@ export function SignInPage() {
     >
       <form onSubmit={submit} noValidate>
         <div className="space-y-4">
-          <AuthField
+          <TextField
+            surface="background"
             id="phone"
             label="Mobile number"
             value={phone}
@@ -89,7 +92,8 @@ export function SignInPage() {
             error={phoneError}
             disabled={submitting}
           />
-          <AuthField
+          <TextField
+            surface="background"
             id="password"
             label="Password"
             value={password}

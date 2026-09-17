@@ -15,6 +15,7 @@ import {
 import { useAddressBook, useStoreConfig } from '@/hooks/useStoreData';
 import { isValidAddress } from '@/lib/validation';
 import { cn } from '@/lib/utils';
+import { TextField } from '@/components/ui/TextField';
 
 /**
  * The address book.
@@ -93,8 +94,15 @@ export function AddressesPage() {
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Label" value={label} onChange={setLabel} placeholder="Home, Work, Mum's" />
-            <Field
+            <TextField
+              id="address-label"
+              label="Save as"
+              value={label}
+              onChange={setLabel}
+              placeholder="Home, Work, Mum's"
+            />
+            <TextField
+              id="address-city"
               label="City"
               value={city}
               onChange={setCity}
@@ -102,13 +110,15 @@ export function AddressesPage() {
             />
           </div>
           <div className="mt-4 grid gap-4">
-            <Field
+            <TextField
+              id="address-line"
               label="Address"
               value={line}
               onChange={setLine}
               placeholder="House, street, locality"
             />
-            <Field
+            <TextField
+              id="address-landmark"
               label="Landmark (optional)"
               value={landmark}
               onChange={setLandmark}
@@ -228,31 +238,5 @@ export function AddressesPage() {
         Back to your account
       </Link>
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-2 h-12 w-full rounded-2xl border border-border bg-surface px-4 text-sm outline-none transition-colors focus:border-primary/25"
-      />
-    </label>
   );
 }

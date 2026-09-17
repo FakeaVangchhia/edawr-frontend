@@ -41,6 +41,22 @@ export interface LocalStoreOptions<T> {
   parse: (raw: unknown) => T | null;
 }
 
+/**
+ * `localStorage.getItem`, on the assumption that the store may not be there.
+ *
+ * Touching `window.localStorage` throws a `SecurityError` when storage is
+ * blocked — Safari's "block all cookies", some private windows, a sandboxed
+ * frame. `readToken()` runs on the checkout path, so without this the order
+ * request would throw before it was sent. A missing store reads as empty.
+ */
+export function readStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export function createLocalStore<T>({ key, empty, parse }: LocalStoreOptions<T>): LocalStore<T> {
   let snapshot: T = empty;
   let hydrated = false;
@@ -63,7 +79,7 @@ export function createLocalStore<T>({ key, empty, parse }: LocalStoreOptions<T>)
     if (typeof window === 'undefined') return empty;
     if (!hydrated) {
       hydrated = true;
-      snapshot = decode(window.localStorage.getItem(key));
+      snapshot = decode(readStorage(key));
     }
     return snapshot;
   };

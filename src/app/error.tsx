@@ -8,9 +8,8 @@ import { reportClientError } from '@/lib/report-error';
  * The route error boundary.
  *
  * It reports to `POST /api/client-errors`, which is same-origin and already
- * allowed by `connect-src` — the reason this used to report to the console and
- * nowhere else was that no such endpoint existed and the CSP would have blocked
- * a third-party collector. See `api/views/reports.py`.
+ * allowed by `connect-src`; the CSP would block a third-party collector. See
+ * `api/views/reports.py`.
  *
  * The console call stays alongside it: in development nobody is reading the
  * Django log while clicking around the storefront.

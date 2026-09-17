@@ -12,7 +12,7 @@
  */
 
 /**
- * Mirrors `normalise_phone` in `backend/api/validators.py`, **including its
+ * Mirrors `normalise_phone` in `edawr-backend/api/validators.py`, **including its
  * length conditions**.
  *
  * The country code is only stripped when there are 12 digits, and a trunk zero

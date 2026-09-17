@@ -21,14 +21,14 @@ import type { StorePromo } from '@/types';
  * target out from under a thumb, and on a page whose whole promise is speed a
  * customer should not have to wait for the slide they wanted to come round.
  *
- * **The list arrives as a prop, fetched on the server by `app/page.tsx`.** It
- * used to fetch in the browser and reserve its space with a skeleton, which
- * is right for a rail that always has content and wrong for one that is
- * usually empty: a store with no banners — every store on day one — got a
- * band that painted and then collapsed on every visit, shoving the category
- * cards up by its own height. Server-rendering it means the HTML already
- * knows whether there is anything to show, so there is no loading state to
- * reserve space for, and a crawler sees the banners too.
+ * **The list arrives as a prop, fetched on the server by `app/page.tsx`.**
+ * Fetching in the browser and reserving space with a skeleton is right for a
+ * rail that always has content and wrong for one that is usually empty: a
+ * store with no banners — every store on day one — would get a band that
+ * painted and then collapsed on every visit, shoving the category cards up by
+ * its own height. Server-rendering it means the HTML already knows whether
+ * there is anything to show, so there is no loading state to reserve space
+ * for, and a crawler sees the banners too.
  *
  * Renders nothing at all for an empty list; an empty band is worse than none.
  * Dots appear only when there is more than one banner, and arrows only on

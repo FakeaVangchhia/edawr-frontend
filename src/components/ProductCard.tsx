@@ -15,6 +15,7 @@ import { addOne, getServerSnapshot, getSnapshot, setQuantity, subscribe } from '
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { StoreProduct } from '@/types';
+import { SectionHeading } from '@/components/SectionHeading';
 
 /**
  * The product tile and its add control, used on every catalogue surface.
@@ -43,14 +44,13 @@ export function AddControl({
   /**
    * The announcement, and why it lives out here.
    *
-   * The live region used to be the `<span>` showing the number, inside the
-   * stepper — which only renders once the quantity is non-zero. A region
-   * inserted into the DOM at the same moment its content first changes is not
-   * announced by most screen readers: they watch regions that were already
-   * there. So the first "Add", the one interaction that matters most, said
-   * nothing, and only the second tap onward was read out.
+   * Not the `<span>` showing the number inside the stepper, which only renders
+   * once the quantity is non-zero. A region inserted into the DOM at the same
+   * moment its content first changes is not announced by most screen readers:
+   * they watch regions that were already there. So the first "Add", the one
+   * interaction that matters most, would say nothing.
    *
-   * Rendering it unconditionally next to all three branches below fixes that.
+   * Rendering it unconditionally next to all three branches below is the fix.
    * It is visually hidden, so the sighted layout is unchanged.
    */
   const announcement =
@@ -86,22 +86,22 @@ export function AddControl({
       <>
         {liveRegion}
         <button
-        type="button"
-        aria-label={`Add ${product.name} to cart`}
-        onClick={(event) => {
-          // These tiles sit inside a <Link>; without this the tap navigates to
-          // the product page instead of adding to the basket.
-          event.preventDefault();
-          event.stopPropagation();
-          addOne(product);
-          toast.success(`${product.name} added`);
-        }}
-        className={cn(
-          'animate-pop rounded-full bg-primary font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift active:scale-95',
-          big ? 'h-13 px-8 text-base' : 'h-9 px-5 text-sm',
-        )}
-      >
-        Add
+          type="button"
+          aria-label={`Add ${product.name} to cart`}
+          onClick={(event) => {
+            // These tiles sit inside a <Link>; without this the tap navigates to
+            // the product page instead of adding to the basket.
+            event.preventDefault();
+            event.stopPropagation();
+            addOne(product);
+            toast.success(`${product.name} added`);
+          }}
+          className={cn(
+            'animate-pop rounded-full bg-primary font-semibold text-primary-foreground transition-all duration-300 ease-[var(--ease-apple)] hover:-translate-y-0.5 hover:shadow-lift active:scale-95',
+            big ? 'h-13 px-8 text-base' : 'h-9 px-5 text-sm',
+          )}
+        >
+          Add
         </button>
       </>
     );
@@ -111,38 +111,38 @@ export function AddControl({
     <>
       {liveRegion}
       <div
-      className={cn(
-        'animate-pop flex items-center justify-between rounded-full bg-primary text-primary-foreground',
-        big ? 'h-13 w-40 px-2' : 'h-9 w-24 px-1.5',
-      )}
-    >
-      <button
-        type="button"
-        aria-label={`Decrease quantity of ${product.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          setQuantity(product, quantity - 1);
-        }}
-        className="grid size-8 place-items-center rounded-full transition-colors hover:bg-primary-foreground/12 active:scale-90"
+        className={cn(
+          'animate-pop flex items-center justify-between rounded-full bg-primary text-primary-foreground',
+          big ? 'h-13 w-40 px-2' : 'h-9 w-24 px-1.5',
+        )}
       >
-        <Minus className="size-4" aria-hidden />
-      </button>
-      <span key={quantity} className="animate-pop num text-sm font-semibold" aria-hidden>
-        {quantity}
-      </span>
-      <button
-        type="button"
-        aria-label={`Increase quantity of ${product.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          addOne(product);
-        }}
-        className="grid size-8 place-items-center rounded-full transition-colors hover:bg-primary-foreground/12 active:scale-90"
-      >
-        <Plus className="size-4" aria-hidden />
-      </button>
+        <button
+          type="button"
+          aria-label={`Decrease quantity of ${product.name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setQuantity(product, quantity - 1);
+          }}
+          className="grid size-8 place-items-center rounded-full transition-colors hover:bg-primary-foreground/12 active:scale-90"
+        >
+          <Minus className="size-4" aria-hidden />
+        </button>
+        <span key={quantity} className="animate-pop num text-sm font-semibold" aria-hidden>
+          {quantity}
+        </span>
+        <button
+          type="button"
+          aria-label={`Increase quantity of ${product.name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            addOne(product);
+          }}
+          className="grid size-8 place-items-center rounded-full transition-colors hover:bg-primary-foreground/12 active:scale-90"
+        >
+          <Plus className="size-4" aria-hidden />
+        </button>
       </div>
     </>
   );
@@ -154,7 +154,7 @@ export function AddControl({
  * One number, from `/api/store/config`, passed down rather than looked up here
  * — a component that fetched its own promise would fire a request per tile.
  */
-export function EtaChip({ minutes, subtle }: { minutes: number | null; subtle?: boolean }) {
+function EtaChip({ minutes, subtle }: { minutes: number | null; subtle?: boolean }) {
   if (minutes === null) return null;
   return (
     <span
@@ -293,23 +293,12 @@ export function ProductRail({
   return (
     <section className="py-8">
       <div className="container-page">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-semibold sm:text-[28px]">
-              {accent && <Zap className="size-5 text-amber" aria-hidden />}
-              {title}
-            </h2>
-            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-          </div>
-          {href && (
-            <Link
-              href={href}
-              className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              View all
-            </Link>
-          )}
-        </div>
+        <SectionHeading
+          title={title}
+          subtitle={subtitle}
+          href={href}
+          icon={accent ? <Zap className="size-5 text-amber" aria-hidden /> : undefined}
+        />
 
         <div className="no-scrollbar -mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-2 lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
           {items.slice(0, 10).map((product) => (

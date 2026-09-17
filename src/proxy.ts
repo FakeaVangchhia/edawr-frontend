@@ -62,8 +62,8 @@ export function proxy(request: NextRequest) {
    * symptom — a page that paints and then does nothing — and none of them
    * reaches a server log. `script-src 'strict-dynamic'` fails silently on a
    * prerendered route; `img-src` and `connect-src` are built from a build-time
-   * environment variable that can be stale. The first symptom used to be a
-   * phone call.
+   * environment variable that can be stale. Without the report, the first
+   * symptom is a phone call.
    *
    * Note this needs **no `connect-src` entry**: a violation report is sent by
    * the browser's own reporting agent, not by page script, so the CSP does not
@@ -138,10 +138,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Skip Next's own static output and the icon/manifest assets. Those are
-   * immutable files served straight from disk; running this on each of them
-   * costs a function invocation and buys nothing, and a nonce on a cached asset
-   * is meaningless.
+   * Skip Next's own static output and the static images and manifest. Those
+   * are immutable files served straight from disk; running this on each of
+   * them costs a function invocation and buys nothing, and a nonce on a cached
+   * asset is meaningless.
    *
    * `manifest-src` is deliberately absent from the policy above — it falls back
    * to `default-src 'self'`, which is already correct.
@@ -149,7 +149,7 @@ export const config = {
   matcher: [
     {
       source:
-        '/((?!_next/static|_next/image|favicon.ico|icon.png|icon-|apple-icon|opengraph-image|twitter-image|manifest.webmanifest).*)',
+        '/((?!_next/static|_next/image|favicon.ico|icon.png|icon-|apple-icon|opengraph-image|twitter-image|manifest.webmanifest|assets/|product-placeholder.svg).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

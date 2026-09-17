@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mergeOrderHistory, tokensNeedingFetch } from '@/lib/order-history';
+import { mergeOrderHistory } from '@/lib/order-history';
 import type { RememberedOrder } from '@/lib/recent-orders';
 import type { TrackedOrder } from '@/types';
 
@@ -107,29 +107,5 @@ describe('mergeOrderHistory', () => {
 
   it('handles both sources being empty', () => {
     expect(mergeOrderHistory([], [])).toEqual([]);
-  });
-});
-
-describe('tokensNeedingFetch', () => {
-  it('asks for nothing when the server covered everything', () => {
-    // The common case for a signed-in customer: one request, then done.
-    const entries = mergeOrderHistory(
-      [server('t1', 1, '2026-08-01T10:00:00Z')],
-      [remembered('t1', 1, '2026-08-01T10:00:00Z')],
-    );
-
-    expect(tokensNeedingFetch(entries)).toEqual([]);
-  });
-
-  it('names only the rows the server did not return', () => {
-    const entries = mergeOrderHistory(
-      [server('t2', 2, '2026-08-02T10:00:00Z')],
-      [
-        remembered('t1', 1, '2026-08-01T10:00:00Z'),
-        remembered('t2', 2, '2026-08-02T10:00:00Z'),
-      ],
-    );
-
-    expect(tokensNeedingFetch(entries)).toEqual(['t1']);
   });
 });

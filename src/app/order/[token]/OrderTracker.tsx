@@ -29,7 +29,6 @@ import {
   formatCountdown,
   formatDateTime,
   formatMoney,
-  formatMoneyExact,
   formatPhone,
 } from '@/lib/format';
 import { isLive, isStopped } from '@/lib/order-status';
@@ -39,6 +38,7 @@ import { claimOrder } from '@/lib/customer-api';
 import { useSession } from '@/hooks/useStoreData';
 import { ImageFallback } from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BillRow } from '@/components/BasketSummary';
 import { cn } from '@/lib/utils';
 import type { OrderStatus, TrackedOrder } from '@/types';
 
@@ -48,8 +48,8 @@ import type { OrderStatus, TrackedOrder } from '@/types';
  * The prototype this design came from invented five stages and a rider, and
  * animated between them on a timer. This shows the **real state machine** from
  * `Order.TRANSITIONS`, polled from the server, with the actual rider attached
- * at Ready or nobody at all. A progress bar that moves on a clock rather than
- * on the order is a lie the customer discovers at the door.
+ * while the order is Dispatched or nobody at all. A progress bar that moves on
+ * a clock rather than on the order is a lie the customer discovers at the door.
  *
  * The order is authorised by possession of the tracking token in the URL, and
  * still is now that accounts exist: this page is public, because the customer
@@ -155,12 +155,12 @@ export function OrderTracker({ token }: { token: string }) {
   /**
    * Poll while the order is live — but only while someone is actually looking.
    *
-   * This used to poll every ten seconds for as long as the page existed. The
-   * common case for this screen is a customer placing an order and then
-   * switching away to do something else for fifteen minutes, which meant six
-   * requests a minute, indefinitely, against a phone's battery and a metered
-   * Aizawl mobile connection, to update a page nobody could see. Multiply by
-   * every customer with a live order and the store is paying for it too.
+   * The common case for this screen is a customer placing an order and then
+   * switching away to do something else for fifteen minutes. Polling every
+   * ten seconds regardless would be six requests a minute, indefinitely,
+   * against a phone's battery and a metered Aizawl mobile connection, to
+   * update a page nobody could see — and the store pays for every customer
+   * with a live order.
    *
    * Coming back refreshes *immediately* rather than waiting out the rest of an
    * interval, so returning to the tab shows the current state at once — which
@@ -560,13 +560,10 @@ export function OrderTracker({ token }: { token: string }) {
               created and is simply being read back. Nothing here re-adds them.
             */}
             <dl className="space-y-3 border-t pt-6 text-sm">
-              <Row label="Item total" value={order.items_total} />
-              <Row label="Delivery" value={order.delivery_fee} />
-              <Row label="Handling" value={order.handling_fee} />
-              <div className="flex items-center justify-between border-t pt-3 text-base font-semibold">
-                <dt>Total</dt>
-                <dd className="num">{formatMoneyExact(order.grand_total)}</dd>
-              </div>
+              <BillRow label="Item total" value={order.items_total} />
+              <BillRow label="Delivery" value={order.delivery_fee} />
+              <BillRow label="Handling" value={order.handling_fee} />
+              <BillRow label="Total" value={order.grand_total} emphasis />
               {/* Cash on delivery means the money changes hands at the door,
                   so an order that never reached the door was never paid. Saying
                   "paid" under the total of a cancelled or failed order reads as
@@ -617,18 +614,7 @@ export function OrderTracker({ token }: { token: string }) {
 function riderNote(status: OrderStatus): string {
   if (status === 'Failed') return 'The rider who attempted this delivery has been released from it.';
   if (status === 'Delivered' || status === 'Cancelled') return 'No rider is attached to this order.';
-  return 'A rider is assigned once your order is packed and ready.';
-}
-
-function Row({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn('num', value === 0 && 'text-amber-foreground')}>
-        {value === 0 ? 'Free' : formatMoneyExact(value)}
-      </dd>
-    </div>
-  );
+  return 'Your rider appears here the moment they set off with your order.';
 }
 
 function TrackingSkeleton() {

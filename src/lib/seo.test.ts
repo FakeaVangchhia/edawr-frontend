@@ -30,6 +30,7 @@ const PRODUCT: StoreProduct = {
   in_stock: true,
   low_stock: false,
   discount_percent: 16,
+  saving: 4,
 };
 
 function config(overrides: Partial<StoreConfig> = {}): StoreConfig {

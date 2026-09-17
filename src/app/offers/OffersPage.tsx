@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useStoreConfig } from '@/hooks/useStoreData';
 import { tiersFrom } from '@/lib/delivery';
 import type { StoreProduct } from '@/types';
+import { unlessAborted } from '@/lib/concurrency';
 
 /**
  * What the store is actually offering today.
@@ -29,19 +30,28 @@ const CATALOGUE_LIMIT = 120;
 export function OffersPage() {
   const config = useStoreConfig();
   const [discounted, setDiscounted] = useState<StoreProduct[] | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
 
     fetchProducts({ limit: CATALOGUE_LIMIT }, controller.signal)
-      .then((products) =>
-        setDiscounted(
-          products
-            .filter((product) => product.in_stock && product.discount_percent > 0)
-            .sort((a, b) => b.discount_percent - a.discount_percent),
+      .then(
+        unlessAborted(controller.signal, (products) =>
+          setDiscounted(
+            products
+              .filter((product) => product.in_stock && product.discount_percent > 0)
+              .sort((a, b) => b.discount_percent - a.discount_percent),
+          ),
         ),
       )
-      .catch(() => setDiscounted([]));
+      // Kept apart from "nothing is discounted": a store that cannot be
+      // reached is not a store with no offers, and saying so would be a false
+      // statement about prices.
+      .catch((caught: unknown) => {
+        if (controller.signal.aborted) return;
+        setError(caught instanceof Error ? caught.message : 'Could not load the offers.');
+      });
 
     return () => controller.abort();
   }, []);
@@ -115,6 +125,12 @@ export function OffersPage() {
           href="/products"
           promiseMinutes={config?.promise_minutes ?? null}
         />
+      )}
+
+      {error && (
+        <div className="container-page pb-16">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
       )}
 
       {discounted?.length === 0 && (
