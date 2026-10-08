@@ -42,6 +42,12 @@ export type GeolocationFailure =
 export interface GeolocationResult {
   coords: Coordinates | null;
   failure: GeolocationFailure | null;
+  /**
+   * The fix's radius in metres, when the device said. Only the tracking page
+   * reads it — it goes to the rider so "the customer is here" comes with "give
+   * or take fifty metres" — and it is absent, not null, on every failure path.
+   */
+  accuracyM?: number | null;
 }
 
 export const GEOLOCATION_MESSAGES: Record<GeolocationFailure, string> = {
@@ -76,6 +82,10 @@ export function requestPosition(timeoutMs = 10_000): Promise<GeolocationResult> 
             longitude: position.coords.longitude,
           },
           failure: null,
+          accuracyM:
+            typeof position.coords.accuracy === 'number' && Number.isFinite(position.coords.accuracy)
+              ? position.coords.accuracy
+              : null,
         }),
       (error) => resolve({ coords: null, failure: describe(error) }),
       { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 },
@@ -114,6 +124,43 @@ export function haversineKm(from: Coordinates, to: Coordinates): number {
       Math.sin(dLon / 2) ** 2;
 
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Initial bearing from one point to another, in degrees clockwise from north,
+ * in `[0, 360)`.
+ *
+ * Used by the tracking page to place the rider relative to where the customer
+ * is standing — "coming from the north-east" — and for nothing that decides
+ * anything. Straight-line, like `haversineKm`, for the same reason.
+ */
+export function bearingDegrees(from: Coordinates, to: Coordinates): number {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const lat1 = toRadians(from.latitude);
+  const lat2 = toRadians(to.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const degrees = (Math.atan2(y, x) * 180) / Math.PI;
+  return (degrees + 360) % 360;
+}
+
+const COMPASS_POINTS = [
+  'north',
+  'north-east',
+  'east',
+  'south-east',
+  'south',
+  'south-west',
+  'west',
+  'north-west',
+] as const;
+
+/** A bearing as a word a person would use: 0 → "north", 100 → "east". */
+export function compassPoint(bearing: number): (typeof COMPASS_POINTS)[number] {
+  const normalised = ((bearing % 360) + 360) % 360;
+  return COMPASS_POINTS[Math.round(normalised / 45) % 8];
 }
 
 export interface DeliveryArea {

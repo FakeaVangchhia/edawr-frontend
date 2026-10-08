@@ -9,6 +9,7 @@ import type {
   StoreConfig,
   StoreProduct,
   StorePromo,
+  RiderPosition,
   TrackedOrder,
 } from '@/types';
 
@@ -277,5 +278,51 @@ export function cancelOrder(token: string, reason: string): Promise<TrackedOrder
   return request<TrackedOrder>(`/api/store/orders/${encodeURIComponent(token)}/cancel`, {
     method: 'POST',
     body: { reason },
+  });
+}
+
+/**
+ * Where the rider is right now, or `null` when there is nothing to draw.
+ *
+ * Polled on its own, a few seconds apart, while the much larger order payload
+ * is fetched rarely — which on Aizawl mobile data is the difference between a
+ * live view and a page that stutters. The route is public under the tracking
+ * token for the same reason the order is, and it is the one place the page
+ * learns anything about a rider's position; see `RiderPosition`.
+ *
+ * This is the seam a push source would replace. A Firebase listener, if one is
+ * ever wired up, produces the same `RiderPosition | null` and everything above
+ * this function stays as it is.
+ */
+export async function fetchRiderPosition(
+  token: string,
+  signal?: AbortSignal,
+): Promise<RiderPosition | null> {
+  const answer = await request<{ rider: RiderPosition | null }>(
+    `/api/store/orders/${encodeURIComponent(token)}/rider-location`,
+    { signal },
+  );
+  return answer.rider ?? null;
+}
+
+/**
+ * Tell the rider where the customer is actually waiting.
+ *
+ * Opt-in from the tracking page, and never the checkout position: the server
+ * keeps this in its own row and does not let it move where the bag is going.
+ * It answers 204, and 409 once the order is over — by then there is nobody to
+ * tell.
+ */
+export function shareCustomerPosition(
+  token: string,
+  position: { latitude: number; longitude: number; accuracy_m?: number | null },
+): Promise<void> {
+  return request<void>(`/api/store/orders/${encodeURIComponent(token)}/location`, {
+    method: 'POST',
+    body: {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy_m: position.accuracy_m ?? null,
+    },
   });
 }

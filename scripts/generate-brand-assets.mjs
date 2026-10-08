@@ -57,7 +57,7 @@ const ROOT = path.resolve(FRONTEND, '..');
 
 const ADMIN = path.join(ROOT, 'admin');
 const CUSTOMER_APP = path.join(ROOT, 'customer-app');
-const MOBILE = path.join(ROOT, 'mobile');
+const MOBILE = path.join(ROOT, 'edawr-delivery');
 
 // The masters live beside this script, not under public/: they are inputs,
 // and 770 KB of source art served from the CDN would be paid for on every
