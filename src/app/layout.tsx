@@ -23,8 +23,8 @@ const inter = Inter({
 });
 
 /**
- * The place name is in the title on purpose. "Everything you need, delivered
- * in minutes" is the brand line and stays on the page; a search for grocery
+ * The place name is in the title on purpose. "Daily essentials. At your door
+ * step." is the brand line and stays on the page; a search for grocery
  * delivery is a search for grocery delivery *somewhere*, and the title is the
  * first thing Google matches against. "Aizawl" and "Mizoram" are the words a
  * customer types.

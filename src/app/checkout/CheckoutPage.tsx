@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { ApiError, assetUrl } from '@/lib/api';
 import { addAddress, selectAddress, selectedAddress, toDeliveryAddress } from '@/lib/addresses';
 import { clearCart } from '@/lib/cart-store';
-import { DEFAULT_DELIVERY_TYPE } from '@/lib/delivery';
+import { DEFAULT_DELIVERY_TYPE, hasTierChoice } from '@/lib/delivery';
 import { formatMoney } from '@/lib/format';
 import {
   GEOLOCATION_MESSAGES,
@@ -631,18 +631,20 @@ export function CheckoutPage() {
             )}
           </section>
 
-          <section className="rounded-4xl border border-border/70 p-6">
-            <h2 className="text-lg font-semibold">Delivery speed</h2>
-            <div className="mt-4">
-              <DeliveryTierPicker
-                config={config}
-                quote={quote}
-                selected={deliveryType}
-                onSelect={setDeliveryType}
-                disabled={isPlacing}
-              />
-            </div>
-          </section>
+          {hasTierChoice(config) && (
+            <section className="rounded-4xl border border-border/70 p-6">
+              <h2 className="text-lg font-semibold">Delivery speed</h2>
+              <div className="mt-4">
+                <DeliveryTierPicker
+                  config={config}
+                  quote={quote}
+                  selected={deliveryType}
+                  onSelect={setDeliveryType}
+                  disabled={isPlacing}
+                />
+              </div>
+            </section>
+          )}
 
           <section className="rounded-4xl border border-border/70 p-6">
             <h2 className="text-lg font-semibold">Payment</h2>

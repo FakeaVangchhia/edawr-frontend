@@ -12,7 +12,7 @@ import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { assetUrl } from '@/lib/api';
 import { addOne, clearCart, mergeLines, removeLine, setQuantity } from '@/lib/cart-store';
-import { DEFAULT_DELIVERY_TYPE } from '@/lib/delivery';
+import { DEFAULT_DELIVERY_TYPE, hasTierChoice } from '@/lib/delivery';
 import { formatMoney } from '@/lib/format';
 import {
   BillLines,
@@ -214,20 +214,22 @@ export function CartPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="space-y-6 rounded-4xl border border-border/70 p-6">
-            <div>
-              <h2 className="text-lg font-semibold">Delivery speed</h2>
-              <div className="mt-4">
-                <DeliveryTierPicker
-                  config={config}
-                  quote={quote}
-                  selected={deliveryType}
-                  onSelect={setDeliveryType}
-                  disabled={isLoading}
-                />
+            {hasTierChoice(config) && (
+              <div>
+                <h2 className="text-lg font-semibold">Delivery speed</h2>
+                <div className="mt-4">
+                  <DeliveryTierPicker
+                    config={config}
+                    quote={quote}
+                    selected={deliveryType}
+                    onSelect={setDeliveryType}
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="border-t pt-6">
+            <div className={cn(hasTierChoice(config) && 'border-t pt-6')}>
               <h2 className="mb-4 text-lg font-semibold">Bill</h2>
               <BillLines quote={quote} />
               {isLoading && (
