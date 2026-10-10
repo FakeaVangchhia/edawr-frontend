@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { ApiError, assetUrl } from '@/lib/api';
 import { addAddress, selectAddress, selectedAddress, toDeliveryAddress } from '@/lib/addresses';
 import { clearCart } from '@/lib/cart-store';
-import { DEFAULT_DELIVERY_TYPE } from '@/lib/delivery';
+import { DEFAULT_DELIVERY_TYPE, hasTierChoice } from '@/lib/delivery';
 import { formatMoney } from '@/lib/format';
 import {
   GEOLOCATION_MESSAGES,
@@ -27,6 +27,7 @@ import { clearCheckoutAttempt } from '@/lib/checkout-attempt';
 import { saveProfile } from '@/lib/profile';
 import { recentOrdersArePersisted, rememberOrder } from '@/lib/recent-orders';
 import { placeOrder } from '@/lib/store-api';
+import { checkoutBlocked, flaggedItems, parseUnavailable } from '@/lib/unavailable';
 import { isValidAddress, isValidIndianMobile, isValidName } from '@/lib/validation';
 import {
   BillLines,
@@ -111,30 +112,6 @@ function focusField(key: keyof FieldErrors): void {
  * back, so showing the local ten digits costs nothing and reads like a phone
  * number rather than like a database row.
  */
-/**
- * The `unavailable` rows a 409 carries, checked field by field.
- *
- * The payload is whatever the server sent, and a cast would let a malformed
- * row reach the cart's "unavailable" markers as `undefined`s. Anything that
- * is not the documented shape is dropped rather than rendered.
- */
-function parseUnavailable(rows: unknown): UnavailableItem[] {
-  if (!Array.isArray(rows)) return [];
-  return rows.flatMap((row): UnavailableItem[] => {
-    if (typeof row !== 'object' || row === null) return [];
-    const item = row as Record<string, unknown>;
-    if (typeof item.product_id !== 'number' || typeof item.name !== 'string') return [];
-    return [
-      {
-        product_id: item.product_id,
-        name: item.name,
-        reason: typeof item.reason === 'string' ? item.reason : 'Not available right now.',
-        available: typeof item.available === 'number' ? item.available : 0,
-      },
-    ];
-  });
-}
-
 function localPhone(stored: string | undefined): string {
   if (!stored) return '';
   const digits = stored.replace(/\D/g, '');
@@ -406,11 +383,8 @@ export function CheckoutPage() {
     }
   };
 
-  const blocked =
-    unavailable.length > 0 ||
-    quote?.meets_minimum === false ||
-    storeClosed ||
-    outsideArea;
+  const flagged = flaggedItems(unavailable, quote);
+  const blocked = checkoutBlocked({ quote, flagged, storeClosed, outsideArea });
 
   return (
     <div className="container-page py-8 pb-20 lg:py-12 lg:pb-12">
@@ -657,18 +631,20 @@ export function CheckoutPage() {
             )}
           </section>
 
-          <section className="rounded-4xl border border-border/70 p-6">
-            <h2 className="text-lg font-semibold">Delivery speed</h2>
-            <div className="mt-4">
-              <DeliveryTierPicker
-                config={config}
-                quote={quote}
-                selected={deliveryType}
-                onSelect={setDeliveryType}
-                disabled={isPlacing}
-              />
-            </div>
-          </section>
+          {hasTierChoice(config) && (
+            <section className="rounded-4xl border border-border/70 p-6">
+              <h2 className="text-lg font-semibold">Delivery speed</h2>
+              <div className="mt-4">
+                <DeliveryTierPicker
+                  config={config}
+                  quote={quote}
+                  selected={deliveryType}
+                  onSelect={setDeliveryType}
+                  disabled={isPlacing}
+                />
+              </div>
+            </section>
+          )}
 
           <section className="rounded-4xl border border-border/70 p-6">
             <h2 className="text-lg font-semibold">Payment</h2>
@@ -693,7 +669,7 @@ export function CheckoutPage() {
               <ul className="mt-4 space-y-3">
                 {lines.map((line) => {
                   const image = assetUrl(line.product.image_url);
-                  const problem = unavailable.find((item) => item.product_id === line.product.id);
+                  const problem = flagged.find((item) => item.product_id === line.product.id);
                   return (
                     <li
                       key={line.product.id}
@@ -764,10 +740,13 @@ export function CheckoutPage() {
               </div>
             )}
 
-            {failure && (
+            {/* Shown for the quote's list too, not only after a refused
+                checkout: the button is already disabled by then, and a
+                disabled button with no reason beside it reads as broken. */}
+            {(failure || flagged.length > 0) && (
               <div className="rounded-2xl bg-destructive-soft px-4 py-3 text-sm text-destructive">
-                <p>{failure}</p>
-                {unavailable.length > 0 && (
+                <p>{failure || 'Some items in your basket are no longer available.'}</p>
+                {flagged.length > 0 && (
                   <Link href="/cart" className="mt-2 inline-block font-semibold underline">
                     Fix your basket
                   </Link>
@@ -782,7 +761,7 @@ export function CheckoutPage() {
             >
               {isPlacing && <Loader2 className="size-4 animate-spin" aria-hidden />}
               {isPlacing ? 'Placing order…' : storeClosed ? 'Store closed' : 'Place order'}
-              {!isPlacing && !storeClosed && quote && (
+              {!isPlacing && !storeClosed && quote && flagged.length === 0 && (
                 <span className="num">· {formatMoney(quote.grand_total)}</span>
               )}
             </button>
@@ -799,7 +778,7 @@ export function CheckoutPage() {
         >
           {isPlacing && <Loader2 className="size-4 animate-spin" aria-hidden />}
           {isPlacing ? 'Placing order…' : storeClosed ? 'Store closed' : 'Place order'}
-          {!isPlacing && !storeClosed && quote && (
+          {!isPlacing && !storeClosed && quote && flagged.length === 0 && (
             <span className="num">· {formatMoney(quote.grand_total)}</span>
           )}
         </button>

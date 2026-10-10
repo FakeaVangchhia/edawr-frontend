@@ -39,6 +39,7 @@ import { useSession } from '@/hooks/useStoreData';
 import { ImageFallback } from '@/components/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BillRow } from '@/components/BasketSummary';
+import { LiveRider } from './LiveRider';
 import { cn } from '@/lib/utils';
 import type { OrderStatus, TrackedOrder } from '@/types';
 
@@ -60,6 +61,9 @@ import type { OrderStatus, TrackedOrder } from '@/types';
  * A signed-in customer is offered the chance to attach this order to their
  * account. It needs no verified number precisely because the token is already
  * the credential: claiming grants nothing that reading this page did not.
+ *
+ * While the order is Dispatched, `LiveRider` polls the rider's position on its
+ * own, faster cadence and offers to share the customer's — see that file.
  */
 
 const POLL_MS = 10_000;
@@ -421,8 +425,10 @@ export function OrderTracker({ token }: { token: string }) {
             ) : (
               <ol className="mt-5 space-y-1">
                 {STEPS.map((step, index) => {
-                  const done = index < currentStep;
-                  const active = index === currentStep;
+                  // Delivered is the last step and nothing follows it, so reaching
+                  // it completes it — amber and pulsing would read as still waiting.
+                  const done = index < currentStep || (delivered && index === currentStep);
+                  const active = index === currentStep && !delivered;
                   const stampKey = STAMPS[step.status];
                   const stamp = stampKey ? (order[stampKey] as string | null) : null;
                   const Icon = step.icon;
@@ -497,6 +503,11 @@ export function OrderTracker({ token }: { token: string }) {
                 </p>
               </div>
             )}
+            {/* Live only while the order is Dispatched — the API answers
+                nothing outside that window, and the component draws nothing
+                outside it either. Mounted with the section rather than the
+                rider row, so the poll starts the moment the status changes. */}
+            <LiveRider token={token} active={order.status === 'Dispatched'} />
           </section>
 
           <section className="rounded-4xl border border-border/70 p-6">

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  bearingDegrees,
+  compassPoint,
   distanceFromStore,
   haversineKm,
   isDeliverable,
@@ -120,7 +122,21 @@ describe('requestPosition', () => {
     await expect(requestPosition()).resolves.toEqual({
       coords: { latitude: 23.73, longitude: 92.72 },
       failure: null,
+      accuracyM: null,
     });
+  });
+
+  it('carries the accuracy radius when the device reports one', async () => {
+    vi.stubGlobal('navigator', {
+      geolocation: {
+        getCurrentPosition: (onSuccess: PositionCallback) =>
+          onSuccess({
+            coords: { latitude: 23.73, longitude: 92.72, accuracy: 18.5 },
+          } as GeolocationPosition),
+      },
+    });
+
+    await expect(requestPosition()).resolves.toMatchObject({ accuracyM: 18.5 });
   });
 
   it('resolves, never rejects, when permission is denied', async () => {
@@ -166,5 +182,33 @@ describe('requestPosition', () => {
       coords: null,
       failure: 'unavailable',
     });
+  });
+});
+
+describe('bearingDegrees and compassPoint', () => {
+  it('is north for a point straight up the same meridian', () => {
+    expect(bearingDegrees(STORE, { latitude: 23.8, longitude: 92.7178 })).toBeCloseTo(0, 5);
+    expect(compassPoint(bearingDegrees(STORE, { latitude: 23.8, longitude: 92.7178 }))).toBe('north');
+  });
+
+  it('is east for a point along the same parallel', () => {
+    const bearing = bearingDegrees(STORE, { latitude: 23.7272, longitude: 92.8 });
+    expect(bearing).toBeGreaterThan(89);
+    expect(bearing).toBeLessThan(91);
+    expect(compassPoint(bearing)).toBe('east');
+  });
+
+  it('stays inside [0, 360) for a westward point', () => {
+    const bearing = bearingDegrees(STORE, { latitude: 23.7272, longitude: 92.6 });
+    expect(bearing).toBeGreaterThanOrEqual(0);
+    expect(bearing).toBeLessThan(360);
+    expect(compassPoint(bearing)).toBe('west');
+  });
+
+  it('rounds a bearing to the nearest of eight points, and wraps', () => {
+    expect(compassPoint(44)).toBe('north-east');
+    expect(compassPoint(340)).toBe('north');
+    expect(compassPoint(359.9)).toBe('north');
+    expect(compassPoint(-90)).toBe('west');
   });
 });

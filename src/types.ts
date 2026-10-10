@@ -234,6 +234,30 @@ export interface TrackedOrder {
   items: OrderItem[];
 }
 
+/**
+ * Where the rider is, from `GET /api/store/orders/{token}/rider-location`.
+ *
+ * The narrowest thing the API says about a member of staff: a point, the way
+ * it is moving, and how far it is from the delivery address. No id, no name,
+ * no accuracy. The route answers `null` for every reason there is nothing to
+ * draw — not dispatched yet, delivered, never reported, or reported too long
+ * ago — and the page treats them all as one state, because distinguishing them
+ * would say when a rider's phone went dark.
+ */
+export interface RiderPosition {
+  latitude: number;
+  longitude: number;
+  /** Degrees clockwise from north, or null when the handset did not know. */
+  heading: number | null;
+  /** The server's clock, which is what freshness is measured against. */
+  received_at: string;
+  /**
+   * Straight-line kilometres to the delivery address, or null for an order
+   * placed without coordinates. Null and zero are different facts.
+   */
+  distance_km: number | null;
+}
+
 /** One line in the basket: the product, plus how many of it. */
 export interface CartLine {
   product: StoreProduct;

@@ -134,10 +134,8 @@ export function HomePage({ promos }: { promos: StorePromo[] }) {
         <div className="container-page flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-6 lg:py-8">
           <div className="animate-rise">
             <h1 className="text-[26px] font-semibold leading-[1.1] sm:text-[32px]">
-              Everything you need,{' '}
-              <span className="text-muted-foreground">
-                {promise ? `in ${promise} minutes.` : 'in minutes.'}
-              </span>
+              Daily essentials.{' '}
+              <span className="text-muted-foreground">At your door step.</span>
             </h1>
 
             {/* The three facts from the old stat block, as one line. */}
